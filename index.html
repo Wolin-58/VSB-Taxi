@@ -168,6 +168,51 @@
     line-height: 1.5;
   }
 
+  .oauth-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    color: var(--muted);
+    font-size: 11px;
+    margin: 4px 0;
+  }
+  .oauth-divider::before, .oauth-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.2);
+  }
+
+  .btn-oauth {
+    width: 100%;
+    padding: 13px 20px;
+    border-radius: 999px;
+    border: 1.5px solid rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.06);
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .btn-oauth:active { transform: scale(0.98); }
+  .btn-oauth:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
+
+  .oauth-icon {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
   .credit-line {
     position: absolute;
     bottom: 18px;
@@ -515,6 +560,66 @@
     font-size: 22px;
     color: var(--teal-dark);
   }
+
+  .cost-inputs input:disabled {
+    opacity: 0.75;
+    background: var(--cream-dark);
+    cursor: not-allowed;
+  }
+
+  .cost-admin-note {
+    font-size: 11px;
+    color: rgba(33,28,51,0.5);
+    margin: -6px 0 14px;
+  }
+
+  .btn-save-settings {
+    width: 100%;
+    padding: 11px 0;
+    border-radius: 12px;
+    border: none;
+    background: var(--teal-dark);
+    color: var(--white);
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    margin-bottom: 16px;
+  }
+  .btn-save-settings:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+  .btn-save-settings:disabled { opacity: 0.6; cursor: default; }
+
+  .admin-panel {
+    margin-top: 4px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(33,28,51,0.12);
+  }
+
+  .admin-panel-title {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+
+  .admin-user-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(33,28,51,0.06);
+  }
+
+  .admin-grand-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(33,28,51,0.2);
+    font-family: 'Baloo 2', sans-serif;
+  }
+  .admin-grand-total span:last-child { font-weight: 800; font-size: 17px; color: var(--purple); }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -531,6 +636,13 @@
     <div class="auth-form">
       <button class="btn-pill" id="btn-go-login">Login</button>
       <button class="link-btn" id="btn-go-register">Register</button>
+      <div class="oauth-divider"><span>nebo</span></div>
+      <button class="btn-oauth" id="btn-oauth-google">
+        <span class="oauth-icon">G</span> Pokračovat přes Google
+      </button>
+      <button class="btn-oauth" id="btn-oauth-apple">
+        <span class="oauth-icon"></span> Pokračovat přes Apple
+      </button>
     </div>
     <div class="credit-line">CREDIT BY WOOLIN INC</div>
   </section>
@@ -605,10 +717,20 @@
           <input type="number" id="input-distance" min="0" step="0.5" inputmode="decimal">
         </label>
       </div>
-      <p class="cost-note">Trasa Opava východ → VŠB Ostrava. Vzdálenost je jen odhad — uprav si ji podle skutečnosti, hodnoty se uloží.</p>
+      <p class="cost-note" id="cost-note">Trasa Opava východ → VŠB Ostrava.</p>
+      <button class="btn-save-settings" id="btn-save-settings" style="display:none;">Potvrdit a přepočítat všem</button>
+      <p class="cost-admin-note" id="cost-admin-note" style="display:none;">Hodnoty nastavuje administrátor a platí pro všechny uživatele.</p>
       <div class="cost-total">
-        <span>Tento měsíc</span>
+        <span>Tvůj podíl tento měsíc</span>
         <span id="cost-total-value">0 Kč</span>
+      </div>
+      <div class="admin-panel" id="admin-panel" style="display:none;">
+        <div class="admin-panel-title">Podíl jednotlivých uživatelů</div>
+        <div id="admin-user-list"></div>
+        <div class="admin-grand-total">
+          <span>Celkem (bez dělení)</span>
+          <span id="admin-grand-total-value">0 Kč</span>
+        </div>
       </div>
     </div>
   </section>
@@ -625,11 +747,13 @@
 
   var WEEKDAY_LABELS = ["Po", "Út", "St", "Čt", "Pá"];
   var MONTH_NAMES = ["leden","únor","březen","duben","květen","červen","červenec","srpen","září","říjen","listopad","prosinec"];
+  var ADMIN_EMAIL = "wolinhry@gmail.com";
 
   var DEFAULT_SETTINGS = { fuelPrice: 35, consumption: 6.5, distanceKm: 22 };
 
   var state = {
     user: null,
+    isAdmin: false,
     rides: {},
     settings: Object.assign({}, DEFAULT_SETTINGS),
     viewYear: new Date().getFullYear(),
@@ -678,11 +802,8 @@
     if (res.error) console.error(res.error);
   }
 
-  async function loadSettingsFromCloud() {
-    var userRes = await supabase.auth.getUser();
-    var user = userRes.data.user;
-    if (!user) return;
-    var res = await supabase.from("settings").select("*").eq("user_id", user.id).maybeSingle();
+  async function loadGlobalSettings() {
+    var res = await supabase.from("global_settings").select("*").eq("id", 1).maybeSingle();
     if (res.data) {
       state.settings = {
         fuelPrice: res.data.fuel_price,
@@ -692,17 +813,29 @@
     }
   }
 
-  async function saveSettingsToCloud() {
-    var userRes = await supabase.auth.getUser();
-    var user = userRes.data.user;
-    if (!user) return;
-    var res = await supabase.from("settings").upsert({
-      user_id: user.id,
-      fuel_price: state.settings.fuelPrice,
-      consumption: state.settings.consumption,
-      distance_km: state.settings.distanceKm
-    });
-    if (res.error) console.error(res.error);
+  async function saveGlobalSettings(newSettings) {
+    var res = await supabase.from("global_settings").update({
+      fuel_price: newSettings.fuelPrice,
+      consumption: newSettings.consumption,
+      distance_km: newSettings.distanceKm
+    }).eq("id", 1);
+    if (res.error) throw res.error;
+  }
+
+  var realtimeChannel = null;
+  function subscribeToGlobalSettings() {
+    if (realtimeChannel) return;
+    realtimeChannel = supabase.channel("global_settings_changes")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "global_settings" }, function (payload) {
+        state.settings = {
+          fuelPrice: payload.new.fuel_price,
+          consumption: payload.new.consumption,
+          distanceKm: payload.new.distance_km
+        };
+        fillCostInputs();
+        renderCostCard();
+      })
+      .subscribe();
   }
 
   function showScreen(id) {
@@ -877,7 +1010,7 @@
       (state.viewYear === today2.getFullYear() && state.viewMonth >= today2.getMonth());
 
     state.monthLegs = totalLegs;
-    computeCost();
+    renderCostCard();
   }
 
   // ---------- Cost card ----------
@@ -885,30 +1018,81 @@
     document.getElementById("input-fuel-price").value = state.settings.fuelPrice;
     document.getElementById("input-consumption").value = state.settings.consumption;
     document.getElementById("input-distance").value = state.settings.distanceKm;
+
+    ["input-fuel-price", "input-consumption", "input-distance"].forEach(function (id) {
+      document.getElementById(id).disabled = !state.isAdmin;
+    });
+    document.getElementById("btn-save-settings").style.display = state.isAdmin ? "block" : "none";
+    document.getElementById("cost-admin-note").style.display = state.isAdmin ? "none" : "block";
+    document.getElementById("admin-panel").style.display = state.isAdmin ? "block" : "none";
   }
 
-  function computeCost() {
-    var fuelInput = document.getElementById("input-fuel-price");
-    var consInput = document.getElementById("input-consumption");
-    var distInput = document.getElementById("input-distance");
-    if (!fuelInput) return; // dashboard not rendered yet
-
-    var fuel = parseFloat(fuelInput.value);
-    var cons = parseFloat(consInput.value);
-    var dist = parseFloat(distInput.value);
+  async function saveSettingsFromInputs() {
+    var fuel = parseFloat(document.getElementById("input-fuel-price").value);
+    var cons = parseFloat(document.getElementById("input-consumption").value);
+    var dist = parseFloat(document.getElementById("input-distance").value);
     if (isNaN(fuel) || fuel < 0) fuel = 0;
     if (isNaN(cons) || cons < 0) cons = 0;
     if (isNaN(dist) || dist < 0) dist = 0;
 
-    var changed = fuel !== state.settings.fuelPrice || cons !== state.settings.consumption || dist !== state.settings.distanceKm;
-    state.settings = { fuelPrice: fuel, consumption: cons, distanceKm: dist };
-    if (changed && state.user) {
-      saveSettingsToCloud().catch(function (e) { console.error(e); });
+    var saveBtn = document.getElementById("btn-save-settings");
+    saveBtn.disabled = true;
+    try {
+      await saveGlobalSettings({ fuelPrice: fuel, consumption: cons, distanceKm: dist });
+      state.settings = { fuelPrice: fuel, consumption: cons, distanceKm: dist };
+      await renderCostCard();
+    } catch (e) {
+      alert("Uložení se nepovedlo: " + e.message);
     }
+    saveBtn.disabled = false;
+  }
 
-    var costPerLeg = dist * (cons / 100) * fuel;
-    var total = costPerLeg * (state.monthLegs || 0);
-    document.getElementById("cost-total-value").textContent = Math.round(total).toLocaleString("cs-CZ") + " Kč";
+  function monthRange() {
+    var start = new Date(state.viewYear, state.viewMonth, 1);
+    var end = new Date(state.viewYear, state.viewMonth + 1, 0);
+    return { start: toKey(start), end: toKey(end) };
+  }
+
+  async function renderCostCard() {
+    var fuel = state.settings.fuelPrice;
+    var cons = state.settings.consumption;
+    var dist = state.settings.distanceKm;
+    var legCost = dist * (cons / 100) * fuel;
+    var range = monthRange();
+
+    var countsRes = await supabase.rpc("ride_counts_for_range", { p_start: range.start, p_end: range.end });
+    var countsByDate = {};
+    (countsRes.data || []).forEach(function (row) {
+      countsByDate[row.ride_date] = { tam: row.tam_count, zpet: row.zpet_count };
+    });
+
+    var myTotal = 0;
+    Object.keys(state.rides).forEach(function (dateKey) {
+      if (dateKey < range.start || dateKey > range.end) return;
+      var entry = state.rides[dateKey];
+      var counts = countsByDate[dateKey] || { tam: 1, zpet: 1 };
+      if (entry.tam) myTotal += legCost / Math.max(counts.tam, 1);
+      if (entry.zpet) myTotal += legCost / Math.max(counts.zpet, 1);
+    });
+
+    document.getElementById("cost-total-value").textContent = Math.round(myTotal).toLocaleString("cs-CZ") + " Kč";
+
+    if (!state.isAdmin) return;
+
+    var usersRes = await supabase.rpc("admin_user_totals", { p_start: range.start, p_end: range.end });
+    var listEl = document.getElementById("admin-user-list");
+    listEl.innerHTML = "";
+    (usersRes.data || []).forEach(function (row) {
+      var rowEl = document.createElement("div");
+      rowEl.className = "admin-user-row";
+      var amount = Math.round(row.total_cost || 0).toLocaleString("cs-CZ") + " Kč";
+      rowEl.innerHTML = "<span>" + row.user_email + "</span><span>" + amount + "</span>";
+      listEl.appendChild(rowEl);
+    });
+
+    var totalRes = await supabase.rpc("admin_total_cost", { p_start: range.start, p_end: range.end });
+    document.getElementById("admin-grand-total-value").textContent =
+      Math.round(totalRes.data || 0).toLocaleString("cs-CZ") + " Kč";
   }
 
   function renderAll() {
@@ -959,20 +1143,30 @@
     }
 
     state.user = result.data.user.email;
+    state.isAdmin = result.data.user.email.toLowerCase() === ADMIN_EMAIL;
     state.viewYear = new Date().getFullYear();
     state.viewMonth = new Date().getMonth();
     state.selectedDate = null;
 
     await loadRidesFromCloud();
-    await loadSettingsFromCloud();
+    await loadGlobalSettings();
     fillCostInputs();
     renderAll();
+    subscribeToGlobalSettings();
     showScreen("screen-dashboard");
+  }
+
+  async function signInWithOAuth(provider) {
+    await supabase.auth.signInWithOAuth({
+      provider: provider,
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
   }
 
   function logout() {
     supabase.auth.signOut();
     state.user = null;
+    state.isAdmin = false;
     state.rides = {};
     showScreen("screen-welcome");
   }
@@ -990,10 +1184,9 @@
   document.getElementById("btn-logout").addEventListener("click", logout);
   document.getElementById("btn-tam").addEventListener("click", function () { toggleLeg("tam"); });
   document.getElementById("btn-zpet").addEventListener("click", function () { toggleLeg("zpet"); });
-
-  ["input-fuel-price", "input-consumption", "input-distance"].forEach(function (id) {
-    document.getElementById(id).addEventListener("input", computeCost);
-  });
+  document.getElementById("btn-oauth-google").addEventListener("click", function () { signInWithOAuth("google"); });
+  document.getElementById("btn-oauth-apple").addEventListener("click", function () { signInWithOAuth("apple"); });
+  document.getElementById("btn-save-settings").addEventListener("click", saveSettingsFromInputs);
 
   document.getElementById("btn-prev-month").addEventListener("click", function () {
     state.viewMonth--;
@@ -1014,10 +1207,12 @@
     var session = sessionRes.data.session;
     if (session && session.user) {
       state.user = session.user.email;
+      state.isAdmin = session.user.email.toLowerCase() === ADMIN_EMAIL;
       await loadRidesFromCloud();
-      await loadSettingsFromCloud();
+      await loadGlobalSettings();
       fillCostInputs();
       renderAll();
+      subscribeToGlobalSettings();
       showScreen("screen-dashboard");
     } else {
       showScreen("screen-welcome");
