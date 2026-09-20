@@ -340,6 +340,23 @@
   .leg-btn:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
   .leg-btn:disabled { opacity: 0.35; cursor: default; }
 
+  .btn-confirm-ride {
+    width: 100%;
+    margin-top: 10px;
+    padding: 12px 0;
+    border-radius: 12px;
+    border: 1.5px solid rgba(255,255,255,0.4);
+    background: var(--white);
+    color: var(--purple);
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .btn-confirm-ride:disabled { opacity: 0.4; cursor: default; }
+  .btn-confirm-ride.saved { background: var(--teal); color: var(--white); border-color: var(--teal); }
+  .btn-confirm-ride:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
+
   .selected-day-note {
     font-size: 12px;
     color: var(--cream);
@@ -548,6 +565,89 @@
     border-top: 1px solid rgba(33,28,51,0.12);
   }
 
+  .btn-pay {
+    width: 100%;
+    margin-top: 12px;
+    padding: 12px 0;
+    border-radius: 12px;
+    border: none;
+    background: var(--purple);
+    color: var(--white);
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .btn-pay:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: 2px; }
+
+  .iban-field {
+    margin-top: 12px;
+  }
+  .iban-field label {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: rgba(33,28,51,0.6);
+    margin-bottom: 6px;
+  }
+  .iban-field input {
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 10px;
+    border: 1.5px solid rgba(33,28,51,0.15);
+    background: var(--white);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+  }
+  .iban-field input:disabled { opacity: 0.75; background: var(--cream-dark); cursor: not-allowed; }
+
+  .qr-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(5,4,10,0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 24px;
+  }
+  .qr-modal-backdrop.open { display: flex; }
+  .qr-modal {
+    background: var(--cream);
+    border-radius: var(--radius-lg);
+    padding: 26px;
+    max-width: 320px;
+    width: 100%;
+    text-align: center;
+    color: var(--ink);
+  }
+  .qr-modal h3 {
+    font-family: 'Baloo 2', sans-serif;
+    margin: 0 0 4px;
+    font-size: 18px;
+  }
+  .qr-modal .qr-amount {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 800;
+    font-size: 26px;
+    color: var(--purple);
+    margin: 4px 0 16px;
+  }
+  .qr-modal canvas { border-radius: 12px; }
+  .qr-modal .qr-close {
+    margin-top: 16px;
+    width: 100%;
+    padding: 11px 0;
+    border-radius: 12px;
+    border: none;
+    background: var(--ink);
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
   .cost-total span:first-child {
     font-family: 'Baloo 2', sans-serif;
     font-weight: 700;
@@ -640,9 +740,6 @@
       <button class="btn-oauth" id="btn-oauth-google">
         <span class="oauth-icon">G</span> Pokračovat přes Google
       </button>
-      <button class="btn-oauth" id="btn-oauth-apple">
-        <span class="oauth-icon"></span> Pokračovat přes Apple
-      </button>
     </div>
     <div class="credit-line">CREDIT BY WOOLIN INC</div>
   </section>
@@ -678,6 +775,7 @@
         <button class="leg-btn" id="btn-tam">TAM</button>
         <button class="leg-btn" id="btn-zpet">ZPĚT</button>
       </div>
+      <button class="btn-confirm-ride" id="btn-confirm-ride">Potvrdit / Uložit</button>
       <div class="selected-day-note" id="selected-day-note"></div>
       <button class="logout-link" id="btn-logout">odhlásit se</button>
     </div>
@@ -718,12 +816,21 @@
         </label>
       </div>
       <p class="cost-note" id="cost-note">Trasa Opava východ → VŠB Ostrava.</p>
+
+      <div class="iban-field" id="iban-field" style="display:none;">
+        <label>IBAN pro platby (nepovinné)</label>
+        <input type="text" id="input-iban" placeholder="CZ65 0800 0000 1920 0014 5399" autocomplete="off">
+      </div>
+
       <button class="btn-save-settings" id="btn-save-settings" style="display:none;">Potvrdit a přepočítat všem</button>
       <p class="cost-admin-note" id="cost-admin-note" style="display:none;">Hodnoty nastavuje administrátor a platí pro všechny uživatele.</p>
+
       <div class="cost-total">
         <span>Tvůj podíl tento měsíc</span>
         <span id="cost-total-value">0 Kč</span>
       </div>
+      <button class="btn-pay" id="btn-pay" style="display:none;">Zaplatit QR kódem</button>
+
       <div class="admin-panel" id="admin-panel" style="display:none;">
         <div class="admin-panel-title">Podíl jednotlivých uživatelů</div>
         <div id="admin-user-list"></div>
@@ -735,8 +842,25 @@
     </div>
   </section>
 
+  <div class="qr-modal-backdrop" id="qr-modal-backdrop">
+    <div class="qr-modal">
+      <h3>QR platba</h3>
+      <div class="qr-amount" id="qr-amount">0 Kč</div>
+      <div id="qr-canvas-holder"></div>
+      <button class="qr-close" id="btn-close-qr">Zavřít</button>
+    </div>
+  </div>
+
+  <div class="qr-modal-backdrop" id="nfc-toast-backdrop">
+    <div class="qr-modal">
+      <h3 id="nfc-toast-title">✅ Zaznamenáno</h3>
+      <p id="nfc-toast-text" style="margin-top:4px;"></p>
+    </div>
+  </div>
+
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
 (function () {
   "use strict";
@@ -749,7 +873,7 @@
   var MONTH_NAMES = ["leden","únor","březen","duben","květen","červen","červenec","srpen","září","říjen","listopad","prosinec"];
   var ADMIN_EMAIL = "wolinhry@gmail.com";
 
-  var DEFAULT_SETTINGS = { fuelPrice: 35, consumption: 6.5, distanceKm: 22 };
+  var DEFAULT_SETTINGS = { fuelPrice: 35, consumption: 6.5, distanceKm: 22, bankIban: "" };
 
   var state = {
     user: null,
@@ -769,9 +893,12 @@
   function sameDay(a, b) { return toKey(a) === toKey(b); }
   function startOfToday() { var d = new Date(); d.setHours(0,0,0,0); return d; }
 
-  // Rides can only be logged for today or yesterday — anything older is view-only.
+  // Regular users: only today or yesterday. Admin: any day up to today (not future).
   function isEditableDate(d) {
     var today = startOfToday();
+    if (state.isAdmin) {
+      return d.getTime() <= today.getTime();
+    }
     var yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
     return d.getTime() === today.getTime() || d.getTime() === yesterday.getTime();
@@ -808,7 +935,8 @@
       state.settings = {
         fuelPrice: res.data.fuel_price,
         consumption: res.data.consumption,
-        distanceKm: res.data.distance_km
+        distanceKm: res.data.distance_km,
+        bankIban: res.data.bank_iban || ""
       };
     }
   }
@@ -817,7 +945,8 @@
     var res = await supabase.from("global_settings").update({
       fuel_price: newSettings.fuelPrice,
       consumption: newSettings.consumption,
-      distance_km: newSettings.distanceKm
+      distance_km: newSettings.distanceKm,
+      bank_iban: newSettings.bankIban || null
     }).eq("id", 1);
     if (res.error) throw res.error;
   }
@@ -830,7 +959,8 @@
         state.settings = {
           fuelPrice: payload.new.fuel_price,
           consumption: payload.new.consumption,
-          distanceKm: payload.new.distance_km
+          distanceKm: payload.new.distance_km,
+          bankIban: payload.new.bank_iban || ""
         };
         fillCostInputs();
         renderCostCard();
@@ -908,6 +1038,7 @@
     var entry = state.rides[key] || { tam: false, zpet: false };
     var tamBtn = document.getElementById("btn-tam");
     var zpetBtn = document.getElementById("btn-zpet");
+    var confirmBtn = document.getElementById("btn-confirm-ride");
     tamBtn.classList.toggle("on", !!entry.tam);
     zpetBtn.classList.toggle("on", !!entry.zpet);
 
@@ -915,17 +1046,24 @@
     var editable = isEditableDate(state.selectedDate);
     tamBtn.disabled = !editable;
     zpetBtn.disabled = !editable;
+    confirmBtn.disabled = !editable;
+    confirmBtn.textContent = "Potvrdit / Uložit";
+    confirmBtn.classList.remove("saved");
 
     var note = document.getElementById("selected-day-note");
     var label = state.selectedDate.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" });
+    var yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
     if (state.selectedDate > today) {
       note.textContent = "Tenhle den ještě nenastal";
     } else if (!editable) {
       note.textContent = "Lze zapisovat jen za dnešek a včerejšek (" + label + " je jen k nahlédnutí)";
     } else if (sameDay(state.selectedDate, today)) {
-      note.textContent = "Zaznamenáváš jízdu na dnešek (" + label + ")";
+      note.textContent = "Vyber TAM/ZPĚT a potvrď — zaznamenává se na dnešek (" + label + ")";
+    } else if (sameDay(state.selectedDate, yesterday)) {
+      note.textContent = "Vyber TAM/ZPĚT a potvrď — zaznamenává se na včerejšek (" + label + ")";
     } else {
-      note.textContent = "Zaznamenáváš jízdu na včerejšek (" + label + ")";
+      note.textContent = "Admin: opravuješ zpětně den " + label;
     }
   }
 
@@ -934,12 +1072,40 @@
     var key = toKey(state.selectedDate);
     var entry = state.rides[key] || { tam: false, zpet: false };
     entry[leg] = !entry[leg];
-    if (!entry.tam && !entry.zpet) {
-      delete state.rides[key];
-    } else {
-      state.rides[key] = entry;
+    state.rides[key] = entry;
+    renderAll();
+  }
+
+  async function confirmRideSave() {
+    if (!isEditableDate(state.selectedDate)) return;
+    var key = toKey(state.selectedDate);
+    var entry = state.rides[key] || { tam: false, zpet: false };
+    var btn = document.getElementById("btn-confirm-ride");
+    btn.disabled = true;
+    try {
+      await saveRideToCloud(key, entry);
+      btn.textContent = "Uloženo ✓";
+      btn.classList.add("saved");
+      setTimeout(function () {
+        btn.textContent = "Potvrdit / Uložit";
+        btn.classList.remove("saved");
+      }, 1600);
+    } catch (e) {
+      alert("Uložení se nepovedlo: " + e.message);
     }
-    saveRideToCloud(key, entry).catch(function (e) { console.error(e); });
+    btn.disabled = !isEditableDate(state.selectedDate);
+    renderCostCard();
+  }
+
+  // Used by NFC auto-log — sets a leg to true and saves immediately, no manual confirm needed.
+  async function autoLogLeg(leg) {
+    var today = startOfToday();
+    var key = toKey(today);
+    var entry = state.rides[key] || { tam: false, zpet: false };
+    entry[leg] = true;
+    state.rides[key] = entry;
+    await saveRideToCloud(key, entry);
+    state.selectedDate = today;
     renderAll();
   }
 
@@ -1018,12 +1184,14 @@
     document.getElementById("input-fuel-price").value = state.settings.fuelPrice;
     document.getElementById("input-consumption").value = state.settings.consumption;
     document.getElementById("input-distance").value = state.settings.distanceKm;
+    document.getElementById("input-iban").value = state.settings.bankIban || "";
 
-    ["input-fuel-price", "input-consumption", "input-distance"].forEach(function (id) {
+    ["input-fuel-price", "input-consumption", "input-distance", "input-iban"].forEach(function (id) {
       document.getElementById(id).disabled = !state.isAdmin;
     });
     document.getElementById("btn-save-settings").style.display = state.isAdmin ? "block" : "none";
     document.getElementById("cost-admin-note").style.display = state.isAdmin ? "none" : "block";
+    document.getElementById("iban-field").style.display = state.isAdmin ? "block" : "none";
     document.getElementById("admin-panel").style.display = state.isAdmin ? "block" : "none";
   }
 
@@ -1031,6 +1199,7 @@
     var fuel = parseFloat(document.getElementById("input-fuel-price").value);
     var cons = parseFloat(document.getElementById("input-consumption").value);
     var dist = parseFloat(document.getElementById("input-distance").value);
+    var iban = document.getElementById("input-iban").value.trim();
     if (isNaN(fuel) || fuel < 0) fuel = 0;
     if (isNaN(cons) || cons < 0) cons = 0;
     if (isNaN(dist) || dist < 0) dist = 0;
@@ -1038,8 +1207,8 @@
     var saveBtn = document.getElementById("btn-save-settings");
     saveBtn.disabled = true;
     try {
-      await saveGlobalSettings({ fuelPrice: fuel, consumption: cons, distanceKm: dist });
-      state.settings = { fuelPrice: fuel, consumption: cons, distanceKm: dist };
+      await saveGlobalSettings({ fuelPrice: fuel, consumption: cons, distanceKm: dist, bankIban: iban });
+      state.settings = { fuelPrice: fuel, consumption: cons, distanceKm: dist, bankIban: iban };
       await renderCostCard();
     } catch (e) {
       alert("Uložení se nepovedlo: " + e.message);
@@ -1075,7 +1244,11 @@
       if (entry.zpet) myTotal += legCost / Math.max(counts.zpet, 1);
     });
 
-    document.getElementById("cost-total-value").textContent = Math.round(myTotal).toLocaleString("cs-CZ") + " Kč";
+    state.myTotal = Math.round(myTotal);
+    document.getElementById("cost-total-value").textContent = state.myTotal.toLocaleString("cs-CZ") + " Kč";
+
+    var payBtn = document.getElementById("btn-pay");
+    payBtn.style.display = (state.settings.bankIban && state.myTotal > 0) ? "block" : "none";
 
     if (!state.isAdmin) return;
 
@@ -1093,6 +1266,35 @@
     var totalRes = await supabase.rpc("admin_total_cost", { p_start: range.start, p_end: range.end });
     document.getElementById("admin-grand-total-value").textContent =
       Math.round(totalRes.data || 0).toLocaleString("cs-CZ") + " Kč";
+  }
+
+  // ---------- QR payment ----------
+  function stripDiacritics(str) {
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function openPaymentQR() {
+    var iban = (state.settings.bankIban || "").replace(/\s+/g, "");
+    var amount = state.myTotal || 0;
+    if (!iban || amount <= 0) return;
+
+    var vs = "" + state.viewYear + pad(state.viewMonth + 1);
+    var msg = stripDiacritics("VSB TAXI " + MONTH_NAMES[state.viewMonth] + " " + state.viewYear).slice(0, 60);
+    var spd = "SPD*1.0*ACC:" + iban + "*AM:" + amount.toFixed(2) + "*CC:CZK*MSG:" + msg + "*X-VS:" + vs;
+
+    document.getElementById("qr-amount").textContent = amount.toLocaleString("cs-CZ") + " Kč";
+    var holder = document.getElementById("qr-canvas-holder");
+    holder.innerHTML = "";
+    var canvas = document.createElement("canvas");
+    holder.appendChild(canvas);
+    QRCode.toCanvas(canvas, spd, { width: 220, margin: 1 }, function (err) {
+      if (err) holder.textContent = "QR kód se nepodařilo vygenerovat.";
+    });
+    document.getElementById("qr-modal-backdrop").classList.add("open");
+  }
+
+  function closePaymentQR() {
+    document.getElementById("qr-modal-backdrop").classList.remove("open");
   }
 
   function renderAll() {
@@ -1154,9 +1356,11 @@
     renderAll();
     subscribeToGlobalSettings();
     showScreen("screen-dashboard");
+    applyPendingNfcIfAny();
   }
 
   async function signInWithOAuth(provider) {
+    stashPendingNfcForRedirect();
     await supabase.auth.signInWithOAuth({
       provider: provider,
       options: { redirectTo: window.location.origin + window.location.pathname }
@@ -1169,6 +1373,52 @@
     state.isAdmin = false;
     state.rides = {};
     showScreen("screen-welcome");
+  }
+
+  // ---------- NFC auto-log (?ride=tam / ?ride=zpet in the URL) ----------
+  var pendingNfcAction = null;
+
+  (function captureNfcParam() {
+    var params = new URLSearchParams(window.location.search);
+    var ride = params.get("ride");
+    if (ride === "tam" || ride === "zpet") {
+      pendingNfcAction = ride;
+      try { sessionStorage.setItem("vsbtaxi_pending_nfc", ride); } catch (e) { /* ignore */ }
+      var url = new URL(window.location.href);
+      url.searchParams.delete("ride");
+      window.history.replaceState({}, "", url.toString());
+    } else {
+      try {
+        var stored = sessionStorage.getItem("vsbtaxi_pending_nfc");
+        if (stored === "tam" || stored === "zpet") pendingNfcAction = stored;
+      } catch (e) { /* ignore */ }
+    }
+  })();
+
+  function stashPendingNfcForRedirect() {
+    if (!pendingNfcAction) return;
+    try { sessionStorage.setItem("vsbtaxi_pending_nfc", pendingNfcAction); } catch (e) { /* ignore */ }
+  }
+
+  async function applyPendingNfcIfAny() {
+    if (!pendingNfcAction) return;
+    var leg = pendingNfcAction;
+    pendingNfcAction = null;
+    try { sessionStorage.removeItem("vsbtaxi_pending_nfc"); } catch (e) { /* ignore */ }
+    try {
+      await autoLogLeg(leg);
+      showNfcToast(leg);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function showNfcToast(leg) {
+    var label = leg === "tam" ? "TAM" : "ZPĚT";
+    document.getElementById("nfc-toast-text").textContent = "Jízda " + label + " byla automaticky zapsána na dnešek.";
+    var backdrop = document.getElementById("nfc-toast-backdrop");
+    backdrop.classList.add("open");
+    setTimeout(function () { backdrop.classList.remove("open"); }, 2500);
   }
 
   // ---------- Wire up events ----------
@@ -1184,9 +1434,11 @@
   document.getElementById("btn-logout").addEventListener("click", logout);
   document.getElementById("btn-tam").addEventListener("click", function () { toggleLeg("tam"); });
   document.getElementById("btn-zpet").addEventListener("click", function () { toggleLeg("zpet"); });
+  document.getElementById("btn-confirm-ride").addEventListener("click", confirmRideSave);
   document.getElementById("btn-oauth-google").addEventListener("click", function () { signInWithOAuth("google"); });
-  document.getElementById("btn-oauth-apple").addEventListener("click", function () { signInWithOAuth("apple"); });
   document.getElementById("btn-save-settings").addEventListener("click", saveSettingsFromInputs);
+  document.getElementById("btn-pay").addEventListener("click", openPaymentQR);
+  document.getElementById("btn-close-qr").addEventListener("click", closePaymentQR);
 
   document.getElementById("btn-prev-month").addEventListener("click", function () {
     state.viewMonth--;
@@ -1214,6 +1466,7 @@
       renderAll();
       subscribeToGlobalSettings();
       showScreen("screen-dashboard");
+      applyPendingNfcIfAny();
     } else {
       showScreen("screen-welcome");
     }
