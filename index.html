@@ -925,8 +925,8 @@
       ride_date: dateKey,
       tam: entry.tam,
       zpet: entry.zpet
-    });
-    if (res.error) console.error(res.error);
+    }, { onConflict: "user_id,ride_date" });
+    if (res.error) throw res.error;
   }
 
   async function loadGlobalSettings() {
