@@ -1252,20 +1252,28 @@
 
     if (!state.isAdmin) return;
 
-    var usersRes = await supabase.rpc("admin_user_totals", { p_start: range.start, p_end: range.end });
     var listEl = document.getElementById("admin-user-list");
     listEl.innerHTML = "";
-    (usersRes.data || []).forEach(function (row) {
-      var rowEl = document.createElement("div");
-      rowEl.className = "admin-user-row";
-      var amount = Math.round(row.total_cost || 0).toLocaleString("cs-CZ") + " Kč";
-      rowEl.innerHTML = "<span>" + row.user_email + "</span><span>" + amount + "</span>";
-      listEl.appendChild(rowEl);
-    });
+
+    var usersRes = await supabase.rpc("admin_user_totals", { p_start: range.start, p_end: range.end });
+    if (usersRes.error) {
+      listEl.innerHTML = "<div class=\"admin-user-row\" style=\"color:#c15a4a;\">Chyba: " + usersRes.error.message + "</div>";
+    } else if (!usersRes.data || usersRes.data.length === 0) {
+      listEl.innerHTML = "<div class=\"admin-user-row\">Zatím žádné jízdy k rozúčtování.</div>";
+    } else {
+      usersRes.data.forEach(function (row) {
+        var rowEl = document.createElement("div");
+        rowEl.className = "admin-user-row";
+        var amount = Math.round(row.total_cost || 0).toLocaleString("cs-CZ") + " Kč";
+        rowEl.innerHTML = "<span>" + row.user_email + "</span><span>" + amount + "</span>";
+        listEl.appendChild(rowEl);
+      });
+    }
 
     var totalRes = await supabase.rpc("admin_total_cost", { p_start: range.start, p_end: range.end });
-    document.getElementById("admin-grand-total-value").textContent =
-      Math.round(totalRes.data || 0).toLocaleString("cs-CZ") + " Kč";
+    document.getElementById("admin-grand-total-value").textContent = totalRes.error
+      ? "chyba"
+      : Math.round(totalRes.data || 0).toLocaleString("cs-CZ") + " Kč";
   }
 
   // ---------- QR payment ----------
