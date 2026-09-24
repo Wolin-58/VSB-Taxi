@@ -26,9 +26,9 @@
     --radius-sm: 10px;
   }
 
-    --radius-sm: 10px;
-  }
-
+  /* Fixed brand theme intentionally — the taxi splash identity stays
+     constant regardless of system light/dark preference, but we still
+     declare both blocks explicitly per platform convention. */
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) { color-scheme: dark; }
   }
@@ -602,22 +602,6 @@
   }
   .iban-field input:disabled { opacity: 0.75; background: var(--cream-dark); cursor: not-allowed; }
 
-  .qr-upload-field {
-    margin-top: 12px;
-  }
-  .qr-upload-field label {
-    display: block;
-    font-size: 10.5px;
-    font-weight: 600;
-    color: rgba(33,28,51,0.6);
-    margin-bottom: 6px;
-  }
-  .qr-upload-field input {
-    font-size: 12px;
-    color: var(--ink);
-    width: 100%;
-  }
-
   .qr-modal-backdrop {
     position: fixed;
     inset: 0;
@@ -650,18 +634,7 @@
     color: var(--purple);
     margin: 4px 0 16px;
   }
-  .qr-modal canvas, .qr-modal .static-qr { border-radius: 12px; max-width: 100%; height: auto; }
-  .qr-modal .static-qr-section {
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px dashed rgba(33,28,51,0.2);
-  }
-  .qr-modal .static-qr-text {
-    font-size: 12px;
-    color: rgba(33,28,51,0.7);
-    margin-bottom: 10px;
-    line-height: 1.4;
-  }
+  .qr-modal canvas { border-radius: 12px; }
   .qr-modal .qr-close {
     margin-top: 16px;
     width: 100%;
@@ -771,13 +744,13 @@
     <div class="credit-line">CREDIT BY WOOLIN INC</div>
   </section>
 
-  <!-- LOGIN / REGISTER -->
+  <!-- LOGIN / REGISTER (Supabase — účet a data jsou v cloudu) -->
   <section id="screen-auth" class="screen welcome-screen">
     <div class="brand-mark">
       <span class="brand-word" style="font-size:32px;" id="auth-title">Login</span>
     </div>
     <div class="auth-form">
-      <input class="name-input" id="email-input" type="email" placeholder="E-mail" autocomplete="usern
+      <input class="name-input" id="email-input" type="email" placeholder="E-mail" autocomplete="username">
       <input class="name-input" id="password-input" type="password" placeholder="Heslo" autocomplete="current-password">
       <button class="btn-pill" id="btn-confirm-auth">Pokračovat</button>
       <button class="link-btn" id="btn-back-welcome">Zpět</button>
@@ -818,7 +791,7 @@
         <span class="cal-stat-value" id="cal-stat-value">0 jízd</span>
       </div>
       <div class="weekday-row">
-        <span>Po</span><span>Út</span><span>St</span><span>Čt</span><span>Pá</span><span>So</span><spa
+        <span>Po</span><span>Út</span><span>St</span><span>Čt</span><span>Pá</span><span>So</span><span>Ne</span>
       </div>
       <div class="day-grid" id="day-grid"></div>
       <div class="legend">
@@ -849,11 +822,6 @@
         <input type="text" id="input-iban" placeholder="CZ65 0800 0000 1920 0014 5399" autocomplete="off">
       </div>
 
-      <div class="qr-upload-field" id="qr-upload-field" style="display:none;">
-        <label>Statický QR kód (pro zálohu)</label>
-        <input type="file" id="input-qr-image" accept="image/*">
-      </div>
-
       <button class="btn-save-settings" id="btn-save-settings" style="display:none;">Potvrdit a přepočítat všem</button>
       <p class="cost-admin-note" id="cost-admin-note" style="display:none;">Hodnoty nastavuje administrátor a platí pro všechny uživatele.</p>
 
@@ -876,15 +844,9 @@
 
   <div class="qr-modal-backdrop" id="qr-modal-backdrop">
     <div class="qr-modal">
-      <h3 id="qr-modal-title">QR platba</h3>
+      <h3>QR platba</h3>
       <div class="qr-amount" id="qr-amount">0 Kč</div>
       <div id="qr-canvas-holder"></div>
-
-      <div id="qr-static-section" class="static-qr-section" style="display:none;">
-        <div class="static-qr-text" id="static-qr-text"></div>
-        <img id="static-qr-img" class="static-qr" src="" alt="QR kód">
-      </div>
-
       <button class="qr-close" id="btn-close-qr">Zavřít</button>
     </div>
   </div>
@@ -911,7 +873,7 @@
   var MONTH_NAMES = ["leden","únor","březen","duben","květen","červen","červenec","srpen","září","říjen","listopad","prosinec"];
   var ADMIN_EMAIL = "wolinhry@gmail.com";
 
-  var DEFAULT_SETTINGS = { fuelPrice: 35, consumption: 6.5, distanceKm: 22, bankIban: "", qrImage: null };
+  var DEFAULT_SETTINGS = { fuelPrice: 35, consumption: 6.5, distanceKm: 22, bankIban: "" };
 
   var state = {
     user: null,
@@ -931,6 +893,7 @@
   function sameDay(a, b) { return toKey(a) === toKey(b); }
   function startOfToday() { var d = new Date(); d.setHours(0,0,0,0); return d; }
 
+  // Regular users: only today or yesterday. Admin: any day up to today (not future).
   function isEditableDate(d) {
     var today = startOfToday();
     if (state.isAdmin) {
@@ -938,11 +901,10 @@
     }
     var yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
-    var futureLimit = new Date(today);
-    futureLimit.setDate(today.getDate() + 7);
-    return d.getTime() >= yesterday.getTime() && d.getTime() <= futureLimit.getTime();
+    return d.getTime() === today.getTime() || d.getTime() === yesterday.getTime();
   }
 
+  // ---------- Supabase data access ----------
   async function loadRidesFromCloud() {
     var userRes = await supabase.auth.getUser();
     var user = userRes.data.user;
@@ -974,8 +936,7 @@
         fuelPrice: res.data.fuel_price,
         consumption: res.data.consumption,
         distanceKm: res.data.distance_km,
-        bankIban: res.data.bank_iban || "",
-        qrImage: res.data.qr_image || null
+        bankIban: res.data.bank_iban || ""
       };
     }
   }
@@ -985,8 +946,7 @@
       fuel_price: newSettings.fuelPrice,
       consumption: newSettings.consumption,
       distance_km: newSettings.distanceKm,
-      bank_iban: newSettings.bankIban || null,
-      qr_image: newSettings.qrImage || null
+      bank_iban: newSettings.bankIban || null
     }).eq("id", 1);
     if (res.error) throw res.error;
   }
@@ -1000,8 +960,7 @@
           fuelPrice: payload.new.fuel_price,
           consumption: payload.new.consumption,
           distanceKm: payload.new.distance_km,
-          bankIban: payload.new.bank_iban || "",
-          qrImage: payload.new.qr_image || null
+          bankIban: payload.new.bank_iban || ""
         };
         fillCostInputs();
         renderCostCard();
@@ -1014,9 +973,10 @@
     document.getElementById(id).classList.add("active");
   }
 
+  // ---------- Monday-start week helpers ----------
   function mondayOfWeek(d) {
     var date = new Date(d);
-    var day = date.getDay();
+    var day = date.getDay(); // 0 = Sun
     var diff = (day === 0 ? -6 : 1 - day);
     date.setDate(date.getDate() + diff);
     date.setHours(0,0,0,0);
@@ -1034,6 +994,7 @@
     return arr;
   }
 
+  // ---------- Rendering: header ----------
   function renderHeader() {
     document.getElementById("header-username").textContent = state.user || "Uživatel";
     document.getElementById("avatar-initial").textContent = (state.user || "U").trim().charAt(0).toUpperCase() || "U";
@@ -1042,6 +1003,7 @@
     document.getElementById("header-date").textContent = today.toLocaleDateString("cs-CZ", opts);
   }
 
+  // ---------- Rendering: week pills ----------
   function renderWeekPills() {
     var container = document.getElementById("week-pills");
     container.innerHTML = "";
@@ -1070,6 +1032,7 @@
     });
   }
 
+  // ---------- Rendering: TAM/ZPĚT buttons ----------
   function renderLegButtons() {
     var key = toKey(state.selectedDate);
     var entry = state.rides[key] || { tam: false, zpet: false };
@@ -1091,17 +1054,16 @@
     var label = state.selectedDate.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" });
     var yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
-
     if (state.selectedDate > today) {
-      note.textContent = "Zápis do budoucna (" + label + ")";
+      note.textContent = "Tenhle den ještě nenastal";
     } else if (!editable) {
-      note.textContent = "Lze zapisovat jen v rozmezí -1 až +7 dní (" + label + " je jen k nahlédnutí)";
+      note.textContent = "Lze zapisovat jen za dnešek a včerejšek (" + label + " je jen k nahlédnutí)";
     } else if (sameDay(state.selectedDate, today)) {
       note.textContent = "Vyber TAM/ZPĚT a potvrď — zaznamenává se na dnešek (" + label + ")";
     } else if (sameDay(state.selectedDate, yesterday)) {
       note.textContent = "Vyber TAM/ZPĚT a potvrď — zaznamenává se na včerejšek (" + label + ")";
     } else {
-      note.textContent = "Opravuješ/zapisuješ den " + label;
+      note.textContent = "Admin: opravuješ zpětně den " + label;
     }
   }
 
@@ -1135,6 +1097,7 @@
     renderCostCard();
   }
 
+  // Used by NFC auto-log — sets a leg to true and saves immediately, no manual confirm needed.
   async function autoLogLeg(leg) {
     var today = startOfToday();
     var key = toKey(today);
@@ -1146,13 +1109,14 @@
     renderAll();
   }
 
+  // ---------- Rendering: calendar ----------
   function renderCalendar() {
     var label = MONTH_NAMES[state.viewMonth] + " " + state.viewYear;
     document.getElementById("cal-month-label").textContent = label;
 
     var firstOfMonth = new Date(state.viewYear, state.viewMonth, 1);
     var daysInMonth = new Date(state.viewYear, state.viewMonth + 1, 0).getDate();
-    var startWeekday = firstOfMonth.getDay();
+    var startWeekday = firstOfMonth.getDay(); // 0 = Sun
     var leadingBlanks = (startWeekday === 0) ? 6 : startWeekday - 1;
 
     var grid = document.getElementById("day-grid");
@@ -1181,7 +1145,7 @@
       cell.setAttribute("data-zpet", entry.zpet ? "1" : "0");
       if (sameDay(d, today)) cell.classList.add("is-today");
       if (sameDay(d, state.selectedDate)) cell.classList.add("is-selected");
-      if (!isEditableDate(d)) cell.disabled = true;
+      if (d > today) cell.disabled = true;
 
       var num = document.createElement("span");
       num.className = "day-num";
@@ -1207,17 +1171,15 @@
     document.getElementById("cal-stat-value").textContent = totalLegs + (totalLegs === 1 ? " jízda" : (totalLegs >= 2 && totalLegs <= 4 ? " jízdy" : " jízd"));
 
     var today2 = startOfToday();
-    var limit7 = new Date(today2);
-    limit7.setDate(today2.getDate() + 7);
-
     document.getElementById("btn-next-month").disabled =
-      (state.viewYear > limit7.getFullYear()) ||
-      (state.viewYear === limit7.getFullYear() && state.viewMonth >= limit7.getMonth());
+      (state.viewYear > today2.getFullYear()) ||
+      (state.viewYear === today2.getFullYear() && state.viewMonth >= today2.getMonth());
 
     state.monthLegs = totalLegs;
     renderCostCard();
   }
 
+  // ---------- Cost card ----------
   function fillCostInputs() {
     document.getElementById("input-fuel-price").value = state.settings.fuelPrice;
     document.getElementById("input-consumption").value = state.settings.consumption;
@@ -1230,7 +1192,6 @@
     document.getElementById("btn-save-settings").style.display = state.isAdmin ? "block" : "none";
     document.getElementById("cost-admin-note").style.display = state.isAdmin ? "none" : "block";
     document.getElementById("iban-field").style.display = state.isAdmin ? "block" : "none";
-    document.getElementById("qr-upload-field").style.display = state.isAdmin ? "block" : "none";
     document.getElementById("admin-panel").style.display = state.isAdmin ? "block" : "none";
   }
 
@@ -1246,37 +1207,13 @@
     var saveBtn = document.getElementById("btn-save-settings");
     saveBtn.disabled = true;
     try {
-      await saveGlobalSettings({ fuelPrice: fuel, consumption: cons, distanceKm: dist, bankIban: iban, qrImage: state.settings.qrImage });
-      state.settings = { fuelPrice: fuel, consumption: cons, distanceKm: dist, bankIban: iban, qrImage
+      await saveGlobalSettings({ fuelPrice: fuel, consumption: cons, distanceKm: dist, bankIban: iban });
+      state.settings = { fuelPrice: fuel, consumption: cons, distanceKm: dist, bankIban: iban };
       await renderCostCard();
     } catch (e) {
       alert("Uložení se nepovedlo: " + e.message);
     }
     saveBtn.disabled = false;
-  }
-
-  async function handleQRImageUpload(e) {
-    var file = e.target.files[0];
-    if (!file) return;
-
-    var reader = new FileReader();
-    reader.onload = async function (ev) {
-      var base64 = ev.target.result;
-      try {
-        await saveGlobalSettings({
-          fuelPrice: state.settings.fuelPrice,
-          consumption: state.settings.consumption,
-          distanceKm: state.settings.distanceKm,
-          bankIban: state.settings.bankIban,
-          qrImage: base64
-        });
-        state.settings.qrImage = base64;
-        alert("QR obrázek byl úspěšně nahran");
-      } catch (err) {
-        alert("Chyba při uploadu: " + err.message);
-      }
-    };
-    reader.readAsDataURL(file);
   }
 
   function monthRange() {
@@ -1303,7 +1240,8 @@
       if (dateKey < range.start || dateKey > range.end) return;
       var entry = state.rides[dateKey];
       var counts = countsByDate[dateKey] || { tam: 1, zpet: 1 };
-= legCost / Math.max(counts.zpet, 1);
+      if (entry.tam) myTotal += legCost / Math.max(counts.tam, 1);
+      if (entry.zpet) myTotal += legCost / Math.max(counts.zpet, 1);
     });
 
     state.myTotal = Math.round(myTotal);
@@ -1319,7 +1257,7 @@
 
     var usersRes = await supabase.rpc("admin_user_totals", { p_start: range.start, p_end: range.end });
     if (usersRes.error) {
-      listEl.innerHTML = "<div class=\"admin-user-row\" style=\"color:#c15a4a;\">Chyba: " + usersRes.e
+      listEl.innerHTML = "<div class=\"admin-user-row\" style=\"color:#c15a4a;\">Chyba: " + usersRes.error.message + "</div>";
     } else if (!usersRes.data || usersRes.data.length === 0) {
       listEl.innerHTML = "<div class=\"admin-user-row\">Zatím žádné jízdy k rozúčtování.</div>";
     } else {
@@ -1338,6 +1276,7 @@
       : Math.round(totalRes.data || 0).toLocaleString("cs-CZ") + " Kč";
   }
 
+  // ---------- QR payment ----------
   function stripDiacritics(str) {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   }
@@ -1347,39 +1286,19 @@
     var amount = state.myTotal || 0;
     if (!iban || amount <= 0) return;
 
-    // 1. OKAMŽITĚ OTEVŘÍT MODAL (aby uživatel viděl, že se něco stalo)
-    document.getElementById("qr-modal-backdrop").classList.add("open");
-
     var vs = "" + state.viewYear + pad(state.viewMonth + 1);
     var msg = stripDiacritics("VSB TAXI " + MONTH_NAMES[state.viewMonth] + " " + state.viewYear).slice(0, 60);
     var spd = "SPD*1.0*ACC:" + iban + "*AM:" + amount.toFixed(2) + "*CC:CZK*MSG:" + msg + "*X-VS:" + vs;
 
     document.getElementById("qr-amount").textContent = amount.toLocaleString("cs-CZ") + " Kč";
-
-    // Generování automatického QR kódu
     var holder = document.getElementById("qr-canvas-holder");
     holder.innerHTML = "";
     var canvas = document.createElement("canvas");
     holder.appendChild(canvas);
-
-    try {
-      if (typeof QRCode === "undefined") throw new Error("Knihovna QRCode nebyla nalezena");
-      QRCode.toCanvas(canvas, spd, { width: 220, margin: 1 }, function (err) {
-        if (err) holder.innerHTML = "<p style='font-size:12px; color:var(--danger);'>Chyba při generování QR.</p>";
-      });
-    } catch (e) {
-      holder.innerHTML = "<p style='font-size:12px; color:var(--danger);'>Chyba: Automatické QR není k dispozici.</p>";
-    }
-
-    // Zobrazení univerzálního QR kódu (záloha z admina)
-    var staticSection = document.getElementById("qr-static-section");
-    if (state.settings.qrImage) {
-      staticSection.style.display = "block";
-      document.getElementById("static-qr-img").src = state.settings.qrImage;
-      document.getElementById("static-qr-text").textContent = "Nebo naskenuj tenhle univerzální QR kód a částku zadej ručně: " + amount.toLocaleString("cs-CZ") + " Kč";
-    } else {
-      staticSection.style.display = "none";
-    }
+    QRCode.toCanvas(canvas, spd, { width: 220, margin: 1 }, function (err) {
+      if (err) holder.textContent = "QR kód se nepodařilo vygenerovat.";
+    });
+    document.getElementById("qr-modal-backdrop").classList.add("open");
   }
 
   function closePaymentQR() {
@@ -1393,6 +1312,7 @@
     renderCalendar();
   }
 
+  // ---------- Auth flow (Supabase) ----------
   function openAuth(mode) {
     authMode = mode;
     document.getElementById("auth-title").textContent = mode === "register" ? "Register" : "Login";
@@ -1463,6 +1383,7 @@
     showScreen("screen-welcome");
   }
 
+  // ---------- NFC auto-log (?ride=tam / ?ride=zpet in the URL) ----------
   var pendingNfcAction = null;
 
   (function captureNfcParam() {
@@ -1508,6 +1429,7 @@
     setTimeout(function () { backdrop.classList.remove("open"); }, 2500);
   }
 
+  // ---------- Wire up events ----------
   document.getElementById("btn-go-login").addEventListener("click", function () { openAuth("login"); });
   document.getElementById("btn-go-register").addEventListener("click", function () { openAuth("register"); });
   document.getElementById("btn-back-welcome").addEventListener("click", function () { showScreen("screen-welcome"); });
@@ -1521,11 +1443,10 @@
   document.getElementById("btn-tam").addEventListener("click", function () { toggleLeg("tam"); });
   document.getElementById("btn-zpet").addEventListener("click", function () { toggleLeg("zpet"); });
   document.getElementById("btn-confirm-ride").addEventListener("click", confirmRideSave);
-  document.getElementById("btn-oauth-google").addEventListener("click", function () { signInWithOAuth(
+  document.getElementById("btn-oauth-google").addEventListener("click", function () { signInWithOAuth("google"); });
   document.getElementById("btn-save-settings").addEventListener("click", saveSettingsFromInputs);
   document.getElementById("btn-pay").addEventListener("click", openPaymentQR);
   document.getElementById("btn-close-qr").addEventListener("click", closePaymentQR);
-  document.getElementById("input-qr-image").addEventListener("change", handleQRImageUpload);
 
   document.getElementById("btn-prev-month").addEventListener("click", function () {
     state.viewMonth--;
@@ -1534,16 +1455,13 @@
   });
   document.getElementById("btn-next-month").addEventListener("click", function () {
     var today = startOfToday();
-    var limit7 = new Date(today);
-    limit7.setDate(today.getDate() + 7);
-    if (state.viewYear > limit7.getFullYear()) return;
-    if (state.viewYear === limit7.getFullYear() && state.viewMonth >= limit7.getMonth()) return;
-
+    if (state.viewYear === today.getFullYear() && state.viewMonth >= today.getMonth()) return;
     state.viewMonth++;
     if (state.viewMonth > 11) { state.viewMonth = 0; state.viewYear++; }
     renderCalendar();
   });
 
+  // ---------- Boot ----------
   async function boot() {
     var sessionRes = await supabase.auth.getSession();
     var session = sessionRes.data.session;
