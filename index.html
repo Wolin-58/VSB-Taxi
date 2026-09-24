@@ -26,6 +26,9 @@
     --radius-sm: 10px;
   }
 
+    --radius-sm: 10px;
+  }
+
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) { color-scheme: dark; }
   }
@@ -310,6 +313,11 @@
   .pill-day:disabled { opacity: 0.35; cursor: default; }
   .pill-day:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
 
+  .log-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
 
   .leg-btn {
     padding: 13px 0;
@@ -330,6 +338,7 @@
     color: var(--white);
   }
   .leg-btn:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
+  .leg-btn:disabled { opacity: 0.35; cursor: default; }
 
   .btn-confirm-ride {
     width: 100%;
@@ -374,7 +383,8 @@
 
   .nav-btn {
     width: 34px; height: 34px;
-
+    border-radius: 50%;
+    border: none;
     background: var(--cream-dark);
     color: var(--ink);
     font-size: 15px;
@@ -767,7 +777,7 @@
       <span class="brand-word" style="font-size:32px;" id="auth-title">Login</span>
     </div>
     <div class="auth-form">
-      <input class="name-input" id="email-input" type="email" placeholder="E-mail" autocomplete="username">
+      <input class="name-input" id="email-input" type="email" placeholder="E-mail" autocomplete="usern
       <input class="name-input" id="password-input" type="password" placeholder="Heslo" autocomplete="current-password">
       <button class="btn-pill" id="btn-confirm-auth">Pokračovat</button>
       <button class="link-btn" id="btn-back-welcome">Zpět</button>
@@ -808,12 +818,12 @@
         <span class="cal-stat-value" id="cal-stat-value">0 jízd</span>
       </div>
       <div class="weekday-row">
-        <span>Po</span><span>Út</span><span>St</span><span>Čt</span><span>Pá</span><span>So</span><span>Ne</span>
+        <span>Po</span><span>Út</span><span>St</span><span>Čt</span><span>Pá</span><span>So</span><spa
       </div>
       <div class="day-grid" id="day-grid"></div>
       <div class="legend">
         <div class="legend-item"><span class="legend-swatch empty"></span> žádná jízda</div>
-        <div class="legend-item"><span class="legend-swatch left"><span class="half"></span></span> je
+        <div class="legend-item"><span class="legend-swatch left"><span class="half"></span></span> jel tam</div>
         <div class="legend-item"><span class="legend-swatch right"><span class="half"></span></span> jel zpět</div>
         <div class="legend-item"><span class="legend-swatch full"><span class="half"></span></span> tam i zpět</div>
       </div>
@@ -844,7 +854,7 @@
         <input type="file" id="input-qr-image" accept="image/*">
       </div>
 
-      <button class="btn-save-settings" id="btn-save-settings" style="display:none;">Potvrdit a přepoč
+      <button class="btn-save-settings" id="btn-save-settings" style="display:none;">Potvrdit a přepočítat všem</button>
       <p class="cost-admin-note" id="cost-admin-note" style="display:none;">Hodnoty nastavuje administrátor a platí pro všechny uživatele.</p>
 
       <div class="cost-total">
@@ -857,7 +867,7 @@
         <div class="admin-panel-title">Podíl jednotlivých uživatelů</div>
         <div id="admin-user-list"></div>
         <div class="admin-grand-total">
-          <span>Celkem (součet podílů)</span>
+          <span>Celkem (bez dělení)</span>
           <span id="admin-grand-total-value">0 Kč</span>
         </div>
       </div>
@@ -1282,7 +1292,7 @@
     var legCost = dist * (cons / 100) * fuel;
     var range = monthRange();
 
-    var countsRes = await supabase.rpc("ride_counts_for_range", { p_start: range.start, p_end: range.e
+    var countsRes = await supabase.rpc("ride_counts_for_range", { p_start: range.start, p_end: range.end });
     var countsByDate = {};
     (countsRes.data || []).forEach(function (row) {
       countsByDate[row.ride_date] = { tam: row.tam_count, zpet: row.zpet_count };
@@ -1293,8 +1303,7 @@
       if (dateKey < range.start || dateKey > range.end) return;
       var entry = state.rides[dateKey];
       var counts = countsByDate[dateKey] || { tam: 1, zpet: 1 };
-      if (entry.tam) myTotal += legCost / Math.max(counts.tam, 1);
-      if (entry.zpet) myTotal += legCost / Math.max(counts.zpet, 1);
+= legCost / Math.max(counts.zpet, 1);
     });
 
     state.myTotal = Math.round(myTotal);
@@ -1309,26 +1318,24 @@
     listEl.innerHTML = "";
 
     var usersRes = await supabase.rpc("admin_user_totals", { p_start: range.start, p_end: range.end });
-
-    var grandTotalSum = 0;
     if (usersRes.error) {
-      listEl.innerHTML = "<div class=\"admin-user-row\" style=\"color:#c15a4a;\">Chyba: " + usersRes.error.message + "</div>";
+      listEl.innerHTML = "<div class=\"admin-user-row\" style=\"color:#c15a4a;\">Chyba: " + usersRes.e
     } else if (!usersRes.data || usersRes.data.length === 0) {
       listEl.innerHTML = "<div class=\"admin-user-row\">Zatím žádné jízdy k rozúčtování.</div>";
     } else {
       usersRes.data.forEach(function (row) {
-        var amountValue = Math.round(row.total_cost || 0);
-        grandTotalSum += amountValue;
         var rowEl = document.createElement("div");
         rowEl.className = "admin-user-row";
-        var amountText = amountValue.toLocaleString("cs-CZ") + " Kč";
-        rowEl.innerHTML = "<span>" + row.user_email + "</span><span>" + amountText + "</span>";
+        var amount = Math.round(row.total_cost || 0).toLocaleString("cs-CZ") + " Kč";
+        rowEl.innerHTML = "<span>" + row.user_email + "</span><span>" + amount + "</span>";
         listEl.appendChild(rowEl);
       });
     }
 
-    // OPRAVA: Celkem je nyní prostý součet podílů uživatelů
-    document.getElementById("admin-grand-total-value").textContent = grandTotalSum.toLocaleString("cs-
+    var totalRes = await supabase.rpc("admin_total_cost", { p_start: range.start, p_end: range.end });
+    document.getElementById("admin-grand-total-value").textContent = totalRes.error
+      ? "chyba"
+      : Math.round(totalRes.data || 0).toLocaleString("cs-CZ") + " Kč";
   }
 
   function stripDiacritics(str) {
@@ -1340,14 +1347,16 @@
     var amount = state.myTotal || 0;
     if (!iban || amount <= 0) return;
 
+    // 1. OKAMŽITĚ OTEVŘÍT MODAL (aby uživatel viděl, že se něco stalo)
     document.getElementById("qr-modal-backdrop").classList.add("open");
 
     var vs = "" + state.viewYear + pad(state.viewMonth + 1);
     var msg = stripDiacritics("VSB TAXI " + MONTH_NAMES[state.viewMonth] + " " + state.viewYear).slice(0, 60);
-    var spd = "SPD*1.0*ACC:" + iban + "*AM:" + amount.toFixed(2) + "*CC:CZK*MSG:" + msg + "*X-VS:" + v
+    var spd = "SPD*1.0*ACC:" + iban + "*AM:" + amount.toFixed(2) + "*CC:CZK*MSG:" + msg + "*X-VS:" + vs;
 
     document.getElementById("qr-amount").textContent = amount.toLocaleString("cs-CZ") + " Kč";
 
+    // Generování automatického QR kódu
     var holder = document.getElementById("qr-canvas-holder");
     holder.innerHTML = "";
     var canvas = document.createElement("canvas");
@@ -1359,9 +1368,10 @@
         if (err) holder.innerHTML = "<p style='font-size:12px; color:var(--danger);'>Chyba při generování QR.</p>";
       });
     } catch (e) {
-      holder.innerHTML = "<p style='font-size:12px; color:var(--danger);'>Chyba: Automatické QR není k
+      holder.innerHTML = "<p style='font-size:12px; color:var(--danger);'>Chyba: Automatické QR není k dispozici.</p>";
     }
 
+    // Zobrazení univerzálního QR kódu (záloha z admina)
     var staticSection = document.getElementById("qr-static-section");
     if (state.settings.qrImage) {
       staticSection.style.display = "block";
@@ -1492,7 +1502,7 @@
 
   function showNfcToast(leg) {
     var label = leg === "tam" ? "TAM" : "ZPĚT";
-    document.getElementById("nfc-toast-text").textContent = "Jízda " + label + " byla automaticky zaps
+    document.getElementById("nfc-toast-text").textContent = "Jízda " + label + " byla automaticky zapsána na dnešek.";
     var backdrop = document.getElementById("nfc-toast-backdrop");
     backdrop.classList.add("open");
     setTimeout(function () { backdrop.classList.remove("open"); }, 2500);
