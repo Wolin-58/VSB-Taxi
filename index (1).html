@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>VŠB Taxi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy-deep: #0a0716;
+    --navy-mid: #241c4d;
+    --purple: #4a3f9e;
+    --purple-light: #6a5cc4;
+    --cream: #ede9df;
+    --cream-dark: #d9d4c4;
+    --teal: #3f7566;
+    --teal-dark: #2e5a4e;
+    --ink: #211c33;
+    --white: #ffffff;
+    --muted: rgba(255,255,255,0.62);
+    --danger: #c15a4a;
+    --radius-lg: 28px;
+    --radius-md: 18px;
+    --radius-sm: 10px;
+  }
+
+  /* Fixed brand theme intentionally — the taxi splash identity stays
+     constant regardless of system light/dark preference, but we still
+     declare both blocks explicitly per platform convention. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { color-scheme: dark; }
+  }
+  :root[data-theme="dark"] { color-scheme: dark; }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    background: var(--navy-deep);
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--white);
+    display: flex;
+    justify-content: center;
+    overflow-x: hidden;
+  }
+
+  .app-shell {
+    width: 100%;
+    max-width: 430px;
+    min-height: 100vh;
+    min-height: 100dvh;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- WELCOME / LOGIN ---------- */
+
+  .welcome-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 34px;
+    padding: 40px 32px;
+    background: radial-gradient(120% 90% at 50% -10%, var(--purple-light) 0%, var(--purple) 32%, var(--navy-mid) 62%, var(--navy-deep) 100%);
+    text-align: center;
+    position: relative;
+  }
+
+  .brand-mark {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .brand-word {
+    font-family: 'Baloo 2', 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: clamp(40px, 11vw, 52px);
+    letter-spacing: 0.5px;
+    color: var(--white);
+  }
+
+  .brand-sub {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 3px;
+    color: var(--cream);
+  }
+
+  .taxi-badge {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+  }
+
+  .auth-form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .name-input {
+    width: 100%;
+    padding: 15px 20px;
+    border-radius: 999px;
+    border: 1.5px solid rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.08);
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    text-align: center;
+    outline: none;
+  }
+  .name-input::placeholder { color: var(--muted); }
+  .name-input:focus { border-color: var(--white); background: rgba(255,255,255,0.14); }
+
+  .btn-pill {
+    width: 100%;
+    padding: 16px 20px;
+    border-radius: 999px;
+    border: none;
+    background: var(--white);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+  }
+  .btn-pill:active { transform: scale(0.98); }
+  .btn-pill:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+
+  .link-btn {
+    background: none;
+    border: none;
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 4px;
+  }
+  .link-btn:focus-visible { outline: 2px solid var(--white); }
+
+  .form-hint {
+    font-size: 12px;
+    color: var(--muted);
+    max-width: 280px;
+    line-height: 1.5;
+  }
+
+  .oauth-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    color: var(--muted);
+    font-size: 11px;
+    margin: 4px 0;
+  }
+  .oauth-divider::before, .oauth-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.2);
+  }
+
+  .btn-oauth {
+    width: 100%;
+    padding: 13px 20px;
+    border-radius: 999px;
+    border: 1.5px solid rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.06);
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .btn-oauth:active { transform: scale(0.98); }
+  .btn-oauth:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
+
+  .oauth-icon {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .credit-line {
+    position: absolute;
+    bottom: 18px;
+    left: 0; right: 0;
+    text-align: center;
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: rgba(120,150,220,0.85);
+  }
+
+  .screen { display: none; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ---------- DASHBOARD ---------- */
+
+  .dashboard {
+    flex: 1;
+    background: var(--navy-deep);
+  }
+
+  .dash-header {
+    background: linear-gradient(160deg, var(--purple-light), var(--purple) 55%, var(--navy-mid));
+    padding: 22px 22px 26px;
+    border-radius: 0 0 30px 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .dash-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .user-row { display: flex; align-items: center; gap: 10px; }
+
+  .avatar {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.35);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--white);
+    flex-shrink: 0;
+  }
+
+  .user-name {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+  }
+
+  .today-label {
+    font-size: 12px;
+    color: var(--cream);
+    text-align: right;
+    line-height: 1.4;
+  }
+
+  .logout-link {
+    background: none; border: none;
+    color: var(--muted);
+    font-size: 11px;
+    text-decoration: underline;
+    cursor: pointer;
+    align-self: flex-end;
+    margin-top: -10px;
+  }
+
+  .week-pills {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+
+  .pill-day {
+    padding: 10px 0;
+    border-radius: 999px;
+    border: 1.5px solid rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.1);
+    color: var(--white);
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .pill-day.selected {
+    background: var(--white);
+    color: var(--purple);
+    border-color: var(--white);
+  }
+  .pill-day:disabled { opacity: 0.35; cursor: default; }
+  .pill-day:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
+
+  .log-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .leg-btn {
+    padding: 13px 0;
+    border-radius: 14px;
+    border: none;
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    background: rgba(255,255,255,0.14);
+    color: var(--white);
+    border: 1.5px solid rgba(255,255,255,0.3);
+  }
+  .leg-btn.on {
+    background: var(--teal);
+    border-color: var(--teal);
+    color: var(--white);
+  }
+  .leg-btn:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
+  .leg-btn:disabled { opacity: 0.35; cursor: default; }
+
+  .btn-confirm-ride {
+    width: 100%;
+    margin-top: 10px;
+    padding: 12px 0;
+    border-radius: 12px;
+    border: 1.5px solid rgba(255,255,255,0.4);
+    background: var(--white);
+    color: var(--purple);
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .btn-confirm-ride:disabled { opacity: 0.4; cursor: default; }
+  .btn-confirm-ride.saved { background: var(--teal); color: var(--white); border-color: var(--teal); }
+  .btn-confirm-ride:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
+
+  .selected-day-note {
+    font-size: 12px;
+    color: var(--cream);
+    text-align: center;
+  }
+
+  /* ---------- CALENDAR CARD ---------- */
+
+  .cal-card {
+    margin: -14px 16px 24px;
+    background: var(--cream);
+    border-radius: var(--radius-lg);
+    padding: 18px 18px 22px;
+    color: var(--ink);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.35);
+  }
+
+  .cal-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .nav-btn {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: var(--cream-dark);
+    color: var(--ink);
+    font-size: 15px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .nav-btn:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+  .nav-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .cal-month-label {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    text-transform: capitalize;
+  }
+
+  .cal-stat {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .cal-stat-label {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+  }
+
+  .cal-stat-value {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    color: var(--teal-dark);
+  }
+
+  .weekday-row, .day-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+
+  .weekday-row {
+    margin-bottom: 8px;
+  }
+
+  .weekday-row span {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(33,28,51,0.5);
+  }
+
+  .day-cell {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    border: 1px solid rgba(33,28,51,0.12);
+    background: var(--white);
+    overflow: hidden;
+    cursor: pointer;
+    padding: 0;
+  }
+  .day-cell.pad { visibility: hidden; cursor: default; pointer-events: none; }
+  .day-cell:disabled { cursor: not-allowed; opacity: 0.4; }
+  .day-cell:focus-visible { outline: 2px solid var(--purple); outline-offset: 1px; }
+
+  .day-cell .half {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 50%;
+    background: transparent;
+  }
+  .day-cell .half-left { left: 0; }
+  .day-cell .half-right { right: 0; }
+  .day-cell[data-tam="1"] .half-left { background: var(--teal); }
+  .day-cell[data-zpet="1"] .half-right { background: var(--teal); }
+
+  .day-num {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .day-cell[data-tam="1"] .day-num,
+  .day-cell[data-zpet="1"] .day-num { color: var(--white); text-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+
+  .day-cell.is-today { box-shadow: inset 0 0 0 2px var(--purple); }
+  .day-cell.is-selected { box-shadow: inset 0 0 0 2px var(--teal-dark); }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+    font-size: 11px;
+    color: rgba(33,28,51,0.65);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch {
+    width: 16px; height: 16px;
+    border-radius: 4px;
+    border: 1px solid rgba(33,28,51,0.15);
+    position: relative;
+    overflow: hidden;
+    background: var(--white);
+    flex-shrink: 0;
+  }
+  .legend-swatch .half { position: absolute; top:0; bottom:0; width:50%; background: var(--teal); }
+  .legend-swatch.full .half { width: 100%; }
+  .legend-swatch.left .half { left: 0; }
+  .legend-swatch.right .half { right: 0; left: auto; }
+  .legend-swatch.empty .half { display: none; }
+
+  /* ---------- COST CARD ---------- */
+
+  .cost-card {
+    margin: 0 16px 28px;
+  }
+
+  .cost-title {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    margin-bottom: 14px;
+  }
+
+  .cost-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .cost-inputs label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: rgba(33,28,51,0.6);
+    line-height: 1.3;
+  }
+
+  .cost-inputs input {
+    padding: 9px 8px;
+    border-radius: 10px;
+    border: 1.5px solid rgba(33,28,51,0.15);
+    background: var(--white);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    width: 100%;
+  }
+  .cost-inputs input:focus {
+    outline: none;
+    border-color: var(--teal-dark);
+  }
+
+  .cost-note {
+    font-size: 11px;
+    color: rgba(33,28,51,0.55);
+    line-height: 1.5;
+    margin: 0 0 16px;
+  }
+
+  .cost-total {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-top: 14px;
+    border-top: 1px solid rgba(33,28,51,0.12);
+  }
+
+  .btn-pay {
+    width: 100%;
+    margin-top: 12px;
+    padding: 12px 0;
+    border-radius: 12px;
+    border: none;
+    background: var(--purple);
+    color: var(--white);
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .btn-pay:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: 2px; }
+
+  .iban-field {
+    margin-top: 12px;
+  }
+  .iban-field label {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: rgba(33,28,51,0.6);
+    margin-bottom: 6px;
+  }
+  .iban-field input {
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 10px;
+    border: 1.5px solid rgba(33,28,51,0.15);
+    background: var(--white);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+  }
+  .iban-field input:disabled { opacity: 0.75; background: var(--cream-dark); cursor: not-allowed; }
+
+  .qr-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(5,4,10,0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 24px;
+  }
+  .qr-modal-backdrop.open { display: flex; }
+  .qr-modal {
+    background: var(--cream);
+    border-radius: var(--radius-lg);
+    padding: 26px;
+    max-width: 320px;
+    width: 100%;
+    text-align: center;
+    color: var(--ink);
+  }
+  .qr-modal h3 {
+    font-family: 'Baloo 2', sans-serif;
+    margin: 0 0 4px;
+    font-size: 18px;
+  }
+  .qr-modal .qr-amount {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 800;
+    font-size: 26px;
+    color: var(--purple);
+    margin: 4px 0 16px;
+  }
+  .qr-modal canvas { border-radius: 12px; }
+  .qr-modal .qr-close {
+    margin-top: 16px;
+    width: 100%;
+    padding: 11px 0;
+    border-radius: 12px;
+    border: none;
+    background: var(--ink);
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .cost-total span:first-child {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+  }
+
+  #cost-total-value {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    color: var(--teal-dark);
+  }
+
+  .cost-inputs input:disabled {
+    opacity: 0.75;
+    background: var(--cream-dark);
+    cursor: not-allowed;
+  }
+
+  .cost-admin-note {
+    font-size: 11px;
+    color: rgba(33,28,51,0.5);
+    margin: -6px 0 14px;
+  }
+
+  .btn-save-settings {
+    width: 100%;
+    padding: 11px 0;
+    border-radius: 12px;
+    border: none;
+    background: var(--teal-dark);
+    color: var(--white);
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    margin-bottom: 16px;
+  }
+  .btn-save-settings:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+  .btn-save-settings:disabled { opacity: 0.6; cursor: default; }
+
+  .admin-panel {
+    margin-top: 4px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(33,28,51,0.12);
+  }
+
+  .admin-panel-title {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+
+  .admin-user-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(33,28,51,0.06);
+  }
+
+  .admin-grand-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(33,28,51,0.2);
+    font-family: 'Baloo 2', sans-serif;
+  }
+  .admin-grand-total span:last-child { font-weight: 800; font-size: 17px; color: var(--purple); }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- WELCOME -->
+  <section id="screen-welcome" class="screen active welcome-screen">
+    <div class="taxi-badge">🚕</div>
+    <div class="brand-mark">
+      <span class="brand-word">welcome</span>
+      <span class="brand-sub">VŠB TAXI</span>
+    </div>
+    <div class="auth-form">
+      <button class="btn-pill" id="btn-go-login">Login</button>
+      <button class="link-btn" id="btn-go-register">Register</button>
+      <div class="oauth-divider"><span>nebo</span></div>
+      <button class="btn-oauth" id="btn-oauth-google">
+        <span class="oauth-icon">G</span> Pokračovat přes Google
+      </button>
+    </div>
+    <div class="credit-line">CREDIT BY WOOLIN INC</div>
+  </section>
+
+  <!-- LOGIN / REGISTER (Supabase — účet a data jsou v cloudu) -->
+  <section id="screen-auth" class="screen welcome-screen">
+    <div class="brand-mark">
+      <span class="brand-word" style="font-size:32px;" id="auth-title">Login</span>
+    </div>
+    <div class="auth-form">
+      <input class="name-input" id="email-input" type="email" placeholder="E-mail" autocomplete="username">
+      <input class="name-input" id="password-input" type="password" placeholder="Heslo" autocomplete="current-password">
+      <button class="btn-pill" id="btn-confirm-auth">Pokračovat</button>
+      <button class="link-btn" id="btn-back-welcome">Zpět</button>
+      <p class="form-hint" id="auth-error"></p>
+    </div>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section id="screen-dashboard" class="screen dashboard">
+    <div class="dash-header">
+      <div class="dash-header-top">
+        <div class="user-row">
+          <div class="avatar" id="avatar-initial">A</div>
+          <span class="user-name" id="header-username">Uživatel</span>
+        </div>
+        <div class="today-label" id="header-date"></div>
+      </div>
+
+      <div class="week-pills" id="week-pills"></div>
+
+      <div class="log-actions">
+        <button class="leg-btn" id="btn-tam">TAM</button>
+        <button class="leg-btn" id="btn-zpet">ZPĚT</button>
+      </div>
+      <button class="btn-confirm-ride" id="btn-confirm-ride">Potvrdit / Uložit</button>
+      <div class="selected-day-note" id="selected-day-note"></div>
+      <button class="logout-link" id="btn-logout">odhlásit se</button>
+    </div>
+
+    <div class="cal-card">
+      <div class="cal-nav">
+        <button class="nav-btn" id="btn-prev-month" aria-label="Předchozí měsíc">←</button>
+        <span class="cal-month-label" id="cal-month-label"></span>
+        <button class="nav-btn" id="btn-next-month" aria-label="Následující měsíc">→</button>
+      </div>
+      <div class="cal-stat">
+        <span class="cal-stat-label">Tento měsíc</span>
+        <span class="cal-stat-value" id="cal-stat-value">0 jízd</span>
+      </div>
+      <div class="weekday-row">
+        <span>Po</span><span>Út</span><span>St</span><span>Čt</span><span>Pá</span><span>So</span><span>Ne</span>
+      </div>
+      <div class="day-grid" id="day-grid"></div>
+      <div class="legend">
+        <div class="legend-item"><span class="legend-swatch empty"></span> žádná jízda</div>
+        <div class="legend-item"><span class="legend-swatch left"><span class="half"></span></span> jel tam</div>
+        <div class="legend-item"><span class="legend-swatch right"><span class="half"></span></span> jel zpět</div>
+        <div class="legend-item"><span class="legend-swatch full"><span class="half"></span></span> tam i zpět</div>
+      </div>
+    </div>
+
+    <div class="cal-card cost-card">
+      <div class="cost-title">Náklady na jízdy</div>
+      <div class="cost-inputs">
+        <label>Benzin (Kč/l)
+          <input type="number" id="input-fuel-price" min="0" step="0.1" inputmode="decimal">
+        </label>
+        <label>Spotřeba (l/100 km)
+          <input type="number" id="input-consumption" min="0" step="0.1" inputmode="decimal">
+        </label>
+        <label>Vzdálenost tam (km)
+          <input type="number" id="input-distance" min="0" step="0.5" inputmode="decimal">
+        </label>
+      </div>
+      <p class="cost-note" id="cost-note">Trasa Opava východ → VŠB Ostrava.</p>
+
+      <div class="iban-field" id="iban-field" style="display:none;">
+        <label>IBAN pro platby (nepovinné)</label>
+        <input type="text" id="input-iban" placeholder="CZ65 0800 0000 1920 0014 5399" autocomplete="off">
+      </div>
+
+      <button class="btn-save-settings" id="btn-save-settings" style="display:none;">Potvrdit a přepočítat všem</button>
+      <p class="cost-admin-note" id="cost-admin-note" style="display:none;">Hodnoty nastavuje administrátor a platí pro všechny uživatele.</p>
+
+      <div class="cost-total">
+        <span>Tvůj podíl tento měsíc</span>
+        <span id="cost-total-value">0 Kč</span>
+      </div>
+      <button class="btn-pay" id="btn-pay" style="display:none;">Zaplatit QR kódem</button>
+
+      <div class="admin-panel" id="admin-panel" style="display:none;">
+        <div class="admin-panel-title">Podíl jednotlivých uživatelů</div>
+        <div id="admin-user-list"></div>
+        <div class="admin-grand-total">
+          <span>Celkem (bez dělení)</span>
+          <span id="admin-grand-total-value">0 Kč</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="qr-modal-backdrop" id="qr-modal-backdrop">
+    <div class="qr-modal">
+      <h3>QR platba</h3>
+      <div class="qr-amount" id="qr-amount">0 Kč</div>
+      <div id="qr-canvas-holder"></div>
+      <button class="qr-close" id="btn-close-qr">Zavřít</button>
+    </div>
+  </div>
+
+  <div class="qr-modal-backdrop" id="nfc-toast-backdrop">
+    <div class="qr-modal">
+      <h3 id="nfc-toast-title">✅ Zaznamenáno</h3>
+      <p id="nfc-toast-text" style="margin-top:4px;"></p>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var SUPABASE_URL = "https://khajfeunqnjpuaejlyvg.supabase.co";
+  var SUPABASE_ANON_KEY = "sb_publishable_0Il7kBQuUEqjLMfnQxWGLg_hmZ372fS";
+  var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  var WEEKDAY_LABELS = ["Po", "Út", "St", "Čt", "Pá"];
+  var MONTH_NAMES = ["leden","únor","březen","duben","květen","červen","červenec","srpen","září","říjen","listopad","prosinec"];
+  var ADMIN_EMAIL = "wolinhry@gmail.com";
+
+  var DEFAULT_SETTINGS = { fuelPrice: 35, consumption: 6.5, distanceKm: 22, bankIban: "" };
+
+  var state = {
+    user: null,
+    isAdmin: false,
+    rides: {},
+    settings: Object.assign({}, DEFAULT_SETTINGS),
+    viewYear: new Date().getFullYear(),
+    viewMonth: new Date().getMonth(),
+    selectedDate: null,
+    monthLegs: 0
+  };
+
+  var authMode = "login";
+
+  function pad(n) { return n < 10 ? "0" + n : "" + n; }
+  function toKey(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function sameDay(a, b) { return toKey(a) === toKey(b); }
+  function startOfToday() { var d = new Date(); d.setHours(0,0,0,0); return d; }
+
+  // Regular users: only today or yesterday. Admin: any day up to today (not future).
+  function isEditableDate(d) {
+    var today = startOfToday();
+    if (state.isAdmin) {
+      return d.getTime() <= today.getTime();
+    }
+    var yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    return d.getTime() === today.getTime() || d.getTime() === yesterday.getTime();
+  }
+
+  // ---------- Supabase data access ----------
+  async function loadRidesFromCloud() {
+    var userRes = await supabase.auth.getUser();
+    var user = userRes.data.user;
+    if (!user) return;
+    var res = await supabase.from("rides").select("*").eq("user_id", user.id);
+    state.rides = {};
+    (res.data || []).forEach(function (row) {
+      state.rides[row.ride_date] = { tam: row.tam, zpet: row.zpet };
+    });
+  }
+
+  async function saveRideToCloud(dateKey, entry) {
+    var userRes = await supabase.auth.getUser();
+    var user = userRes.data.user;
+    if (!user) return;
+    var res = await supabase.from("rides").upsert({
+      user_id: user.id,
+      ride_date: dateKey,
+      tam: entry.tam,
+      zpet: entry.zpet
+    }, { onConflict: "user_id,ride_date" });
+    if (res.error) throw res.error;
+  }
+
+  async function loadGlobalSettings() {
+    var res = await supabase.from("global_settings").select("*").eq("id", 1).maybeSingle();
+    if (res.data) {
+      state.settings = {
+        fuelPrice: res.data.fuel_price,
+        consumption: res.data.consumption,
+        distanceKm: res.data.distance_km,
+        bankIban: res.data.bank_iban || ""
+      };
+    }
+  }
+
+  async function saveGlobalSettings(newSettings) {
+    var res = await supabase.from("global_settings").update({
+      fuel_price: newSettings.fuelPrice,
+      consumption: newSettings.consumption,
+      distance_km: newSettings.distanceKm,
+      bank_iban: newSettings.bankIban || null
+    }).eq("id", 1);
+    if (res.error) throw res.error;
+  }
+
+  var realtimeChannel = null;
+  function subscribeToGlobalSettings() {
+    if (realtimeChannel) return;
+    realtimeChannel = supabase.channel("global_settings_changes")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "global_settings" }, function (payload) {
+        state.settings = {
+          fuelPrice: payload.new.fuel_price,
+          consumption: payload.new.consumption,
+          distanceKm: payload.new.distance_km,
+          bankIban: payload.new.bank_iban || ""
+        };
+        fillCostInputs();
+        renderCostCard();
+      })
+      .subscribe();
+  }
+
+  function showScreen(id) {
+    document.querySelectorAll(".screen").forEach(function (el) { el.classList.remove("active"); });
+    document.getElementById(id).classList.add("active");
+  }
+
+  // ---------- Monday-start week helpers ----------
+  function mondayOfWeek(d) {
+    var date = new Date(d);
+    var day = date.getDay(); // 0 = Sun
+    var diff = (day === 0 ? -6 : 1 - day);
+    date.setDate(date.getDate() + diff);
+    date.setHours(0,0,0,0);
+    return date;
+  }
+
+  function currentWeekDates() {
+    var mon = mondayOfWeek(new Date());
+    var arr = [];
+    for (var i = 0; i < 5; i++) {
+      var d = new Date(mon);
+      d.setDate(mon.getDate() + i);
+      arr.push(d);
+    }
+    return arr;
+  }
+
+  // ---------- Rendering: header ----------
+  function renderHeader() {
+    document.getElementById("header-username").textContent = state.user || "Uživatel";
+    document.getElementById("avatar-initial").textContent = (state.user || "U").trim().charAt(0).toUpperCase() || "U";
+    var today = new Date();
+    var opts = { weekday: "long", day: "numeric", month: "numeric" };
+    document.getElementById("header-date").textContent = today.toLocaleDateString("cs-CZ", opts);
+  }
+
+  // ---------- Rendering: week pills ----------
+  function renderWeekPills() {
+    var container = document.getElementById("week-pills");
+    container.innerHTML = "";
+    var week = currentWeekDates();
+    var today = startOfToday();
+
+    if (!state.selectedDate || state.selectedDate > today) {
+      var pick = today;
+      var isWeekday = today.getDay() >= 1 && today.getDay() <= 5;
+      if (!isWeekday) { pick = week[4]; }
+      state.selectedDate = pick;
+    }
+
+    week.forEach(function (d, i) {
+      var btn = document.createElement("button");
+      btn.className = "pill-day";
+      btn.type = "button";
+      btn.textContent = WEEKDAY_LABELS[i];
+      if (!isEditableDate(d)) btn.disabled = true;
+      if (sameDay(d, state.selectedDate)) btn.classList.add("selected");
+      btn.addEventListener("click", function () {
+        state.selectedDate = d;
+        renderAll();
+      });
+      container.appendChild(btn);
+    });
+  }
+
+  // ---------- Rendering: TAM/ZPĚT buttons ----------
+  function renderLegButtons() {
+    var key = toKey(state.selectedDate);
+    var entry = state.rides[key] || { tam: false, zpet: false };
+    var tamBtn = document.getElementById("btn-tam");
+    var zpetBtn = document.getElementById("btn-zpet");
+    var confirmBtn = document.getElementById("btn-confirm-ride");
+    tamBtn.classList.toggle("on", !!entry.tam);
+    zpetBtn.classList.toggle("on", !!entry.zpet);
+
+    var today = startOfToday();
+    var editable = isEditableDate(state.selectedDate);
+    tamBtn.disabled = !editable;
+    zpetBtn.disabled = !editable;
+    confirmBtn.disabled = !editable;
+    confirmBtn.textContent = "Potvrdit / Uložit";
+    confirmBtn.classList.remove("saved");
+
+    var note = document.getElementById("selected-day-note");
+    var label = state.selectedDate.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" });
+    var yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    if (state.selectedDate > today) {
+      note.textContent = "Tenhle den ještě nenastal";
+    } else if (!editable) {
+      note.textContent = "Lze zapisovat jen za dnešek a včerejšek (" + label + " je jen k nahlédnutí)";
+    } else if (sameDay(state.selectedDate, today)) {
+      note.textContent = "Vyber TAM/ZPĚT a potvrď — zaznamenává se na dnešek (" + label + ")";
+    } else if (sameDay(state.selectedDate, yesterday)) {
+      note.textContent = "Vyber TAM/ZPĚT a potvrď — zaznamenává se na včerejšek (" + label + ")";
+    } else {
+      note.textContent = "Admin: opravuješ zpětně den " + label;
+    }
+  }
+
+  function toggleLeg(leg) {
+    if (!isEditableDate(state.selectedDate)) return;
+    var key = toKey(state.selectedDate);
+    var entry = state.rides[key] || { tam: false, zpet: false };
+    entry[leg] = !entry[leg];
+    state.rides[key] = entry;
+    renderAll();
+  }
+
+  async function confirmRideSave() {
+    if (!isEditableDate(state.selectedDate)) return;
+    var key = toKey(state.selectedDate);
+    var entry = state.rides[key] || { tam: false, zpet: false };
+    var btn = document.getElementById("btn-confirm-ride");
+    btn.disabled = true;
+    try {
+      await saveRideToCloud(key, entry);
+      btn.textContent = "Uloženo ✓";
+      btn.classList.add("saved");
+      setTimeout(function () {
+        btn.textContent = "Potvrdit / Uložit";
+        btn.classList.remove("saved");
+      }, 1600);
+    } catch (e) {
+      alert("Uložení se nepovedlo: " + e.message);
+    }
+    btn.disabled = !isEditableDate(state.selectedDate);
+    renderCostCard();
+  }
+
+  // Used by NFC auto-log — sets a leg to true and saves immediately, no manual confirm needed.
+  async function autoLogLeg(leg) {
+    var today = startOfToday();
+    var key = toKey(today);
+    var entry = state.rides[key] || { tam: false, zpet: false };
+    entry[leg] = true;
+    state.rides[key] = entry;
+    await saveRideToCloud(key, entry);
+    state.selectedDate = today;
+    renderAll();
+  }
+
+  // ---------- Rendering: calendar ----------
+  function renderCalendar() {
+    var label = MONTH_NAMES[state.viewMonth] + " " + state.viewYear;
+    document.getElementById("cal-month-label").textContent = label;
+
+    var firstOfMonth = new Date(state.viewYear, state.viewMonth, 1);
+    var daysInMonth = new Date(state.viewYear, state.viewMonth + 1, 0).getDate();
+    var startWeekday = firstOfMonth.getDay(); // 0 = Sun
+    var leadingBlanks = (startWeekday === 0) ? 6 : startWeekday - 1;
+
+    var grid = document.getElementById("day-grid");
+    grid.innerHTML = "";
+
+    for (var b = 0; b < leadingBlanks; b++) {
+      var pad0 = document.createElement("div");
+      pad0.className = "day-cell pad";
+      grid.appendChild(pad0);
+    }
+
+    var today = startOfToday();
+    var totalLegs = 0;
+
+    for (var day = 1; day <= daysInMonth; day++) {
+      var d = new Date(state.viewYear, state.viewMonth, day);
+      var key = toKey(d);
+      var entry = state.rides[key] || { tam: false, zpet: false };
+      if (entry.tam) totalLegs++;
+      if (entry.zpet) totalLegs++;
+
+      var cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "day-cell";
+      cell.setAttribute("data-tam", entry.tam ? "1" : "0");
+      cell.setAttribute("data-zpet", entry.zpet ? "1" : "0");
+      if (sameDay(d, today)) cell.classList.add("is-today");
+      if (sameDay(d, state.selectedDate)) cell.classList.add("is-selected");
+      if (d > today) cell.disabled = true;
+
+      var num = document.createElement("span");
+      num.className = "day-num";
+      num.textContent = day;
+
+      var halfL = document.createElement("span"); halfL.className = "half half-left";
+      var halfR = document.createElement("span"); halfR.className = "half half-right";
+
+      cell.appendChild(halfL);
+      cell.appendChild(halfR);
+      cell.appendChild(num);
+
+      (function (dateForCell) {
+        cell.addEventListener("click", function () {
+          state.selectedDate = dateForCell;
+          renderAll();
+        });
+      })(d);
+
+      grid.appendChild(cell);
+    }
+
+    document.getElementById("cal-stat-value").textContent = totalLegs + (totalLegs === 1 ? " jízda" : (totalLegs >= 2 && totalLegs <= 4 ? " jízdy" : " jízd"));
+
+    var today2 = startOfToday();
+    document.getElementById("btn-next-month").disabled =
+      (state.viewYear > today2.getFullYear()) ||
+      (state.viewYear === today2.getFullYear() && state.viewMonth >= today2.getMonth());
+
+    state.monthLegs = totalLegs;
+    renderCostCard();
+  }
+
+  // ---------- Cost card ----------
+  function fillCostInputs() {
+    document.getElementById("input-fuel-price").value = state.settings.fuelPrice;
+    document.getElementById("input-consumption").value = state.settings.consumption;
+    document.getElementById("input-distance").value = state.settings.distanceKm;
+    document.getElementById("input-iban").value = state.settings.bankIban || "";
+
+    ["input-fuel-price", "input-consumption", "input-distance", "input-iban"].forEach(function (id) {
+      document.getElementById(id).disabled = !state.isAdmin;
+    });
+    document.getElementById("btn-save-settings").style.display = state.isAdmin ? "block" : "none";
+    document.getElementById("cost-admin-note").style.display = state.isAdmin ? "none" : "block";
+    document.getElementById("iban-field").style.display = state.isAdmin ? "block" : "none";
+    document.getElementById("admin-panel").style.display = state.isAdmin ? "block" : "none";
+  }
+
+  async function saveSettingsFromInputs() {
+    var fuel = parseFloat(document.getElementById("input-fuel-price").value);
+    var cons = parseFloat(document.getElementById("input-consumption").value);
+    var dist = parseFloat(document.getElementById("input-distance").value);
+    var iban = document.getElementById("input-iban").value.trim();
+    if (isNaN(fuel) || fuel < 0) fuel = 0;
+    if (isNaN(cons) || cons < 0) cons = 0;
+    if (isNaN(dist) || dist < 0) dist = 0;
+
+    var saveBtn = document.getElementById("btn-save-settings");
+    saveBtn.disabled = true;
+    try {
+      await saveGlobalSettings({ fuelPrice: fuel, consumption: cons, distanceKm: dist, bankIban: iban });
+      state.settings = { fuelPrice: fuel, consumption: cons, distanceKm: dist, bankIban: iban };
+      await renderCostCard();
+    } catch (e) {
+      alert("Uložení se nepovedlo: " + e.message);
+    }
+    saveBtn.disabled = false;
+  }
+
+  function monthRange() {
+    var start = new Date(state.viewYear, state.viewMonth, 1);
+    var end = new Date(state.viewYear, state.viewMonth + 1, 0);
+    return { start: toKey(start), end: toKey(end) };
+  }
+
+  async function renderCostCard() {
+    var fuel = state.settings.fuelPrice;
+    var cons = state.settings.consumption;
+    var dist = state.settings.distanceKm;
+    var legCost = dist * (cons / 100) * fuel;
+    var range = monthRange();
+
+    var countsRes = await supabase.rpc("ride_counts_for_range", { p_start: range.start, p_end: range.end });
+    var countsByDate = {};
+    (countsRes.data || []).forEach(function (row) {
+      countsByDate[row.ride_date] = { tam: row.tam_count, zpet: row.zpet_count };
+    });
+
+    var myTotal = 0;
+    Object.keys(state.rides).forEach(function (dateKey) {
+      if (dateKey < range.start || dateKey > range.end) return;
+      var entry = state.rides[dateKey];
+      var counts = countsByDate[dateKey] || { tam: 1, zpet: 1 };
+      if (entry.tam) myTotal += legCost / Math.max(counts.tam, 1);
+      if (entry.zpet) myTotal += legCost / Math.max(counts.zpet, 1);
+    });
+
+    state.myTotal = Math.round(myTotal);
+    document.getElementById("cost-total-value").textContent = state.myTotal.toLocaleString("cs-CZ") + " Kč";
+
+    var payBtn = document.getElementById("btn-pay");
+    payBtn.style.display = (state.settings.bankIban && state.myTotal > 0) ? "block" : "none";
+
+    if (!state.isAdmin) return;
+
+    var listEl = document.getElementById("admin-user-list");
+    listEl.innerHTML = "";
+
+    var usersRes = await supabase.rpc("admin_user_totals", { p_start: range.start, p_end: range.end });
+    if (usersRes.error) {
+      listEl.innerHTML = "<div class=\"admin-user-row\" style=\"color:#c15a4a;\">Chyba: " + usersRes.error.message + "</div>";
+    } else if (!usersRes.data || usersRes.data.length === 0) {
+      listEl.innerHTML = "<div class=\"admin-user-row\">Zatím žádné jízdy k rozúčtování.</div>";
+    } else {
+      usersRes.data.forEach(function (row) {
+        var rowEl = document.createElement("div");
+        rowEl.className = "admin-user-row";
+        var amount = Math.round(row.total_cost || 0).toLocaleString("cs-CZ") + " Kč";
+        rowEl.innerHTML = "<span>" + row.user_email + "</span><span>" + amount + "</span>";
+        listEl.appendChild(rowEl);
+      });
+    }
+
+    var totalRes = await supabase.rpc("admin_total_cost", { p_start: range.start, p_end: range.end });
+    document.getElementById("admin-grand-total-value").textContent = totalRes.error
+      ? "chyba"
+      : Math.round(totalRes.data || 0).toLocaleString("cs-CZ") + " Kč";
+  }
+
+  // ---------- QR payment ----------
+  function stripDiacritics(str) {
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function openPaymentQR() {
+    var iban = (state.settings.bankIban || "").replace(/\s+/g, "");
+    var amount = state.myTotal || 0;
+    if (!iban || amount <= 0) return;
+
+    var vs = "" + state.viewYear + pad(state.viewMonth + 1);
+    var msg = stripDiacritics("VSB TAXI " + MONTH_NAMES[state.viewMonth] + " " + state.viewYear).slice(0, 60);
+    var spd = "SPD*1.0*ACC:" + iban + "*AM:" + amount.toFixed(2) + "*CC:CZK*MSG:" + msg + "*X-VS:" + vs;
+
+    document.getElementById("qr-amount").textContent = amount.toLocaleString("cs-CZ") + " Kč";
+    var holder = document.getElementById("qr-canvas-holder");
+    holder.innerHTML = "";
+    var canvas = document.createElement("canvas");
+    holder.appendChild(canvas);
+    QRCode.toCanvas(canvas, spd, { width: 220, margin: 1 }, function (err) {
+      if (err) holder.textContent = "QR kód se nepodařilo vygenerovat.";
+    });
+    document.getElementById("qr-modal-backdrop").classList.add("open");
+  }
+
+  function closePaymentQR() {
+    document.getElementById("qr-modal-backdrop").classList.remove("open");
+  }
+
+  function renderAll() {
+    renderHeader();
+    renderWeekPills();
+    renderLegButtons();
+    renderCalendar();
+  }
+
+  // ---------- Auth flow (Supabase) ----------
+  function openAuth(mode) {
+    authMode = mode;
+    document.getElementById("auth-title").textContent = mode === "register" ? "Register" : "Login";
+    document.getElementById("email-input").value = "";
+    document.getElementById("password-input").value = "";
+    document.getElementById("auth-error").textContent = "";
+    showScreen("screen-auth");
+    document.getElementById("email-input").focus();
+  }
+
+  async function confirmAuth() {
+    var email = document.getElementById("email-input").value.trim();
+    var password = document.getElementById("password-input").value;
+    var errorEl = document.getElementById("auth-error");
+    errorEl.textContent = "";
+
+    if (!email || !password) {
+      errorEl.textContent = "Vyplň e-mail i heslo.";
+      return;
+    }
+
+    var confirmBtn = document.getElementById("btn-confirm-auth");
+    confirmBtn.disabled = true;
+
+    var result = (authMode === "register")
+      ? await supabase.auth.signUp({ email: email, password: password })
+      : await supabase.auth.signInWithPassword({ email: email, password: password });
+
+    confirmBtn.disabled = false;
+
+    if (result.error) {
+      errorEl.textContent = result.error.message;
+      return;
+    }
+    if (!result.data.user) {
+      errorEl.textContent = "Zkontroluj e-mail a potvrď registraci, pak se přihlas.";
+      return;
+    }
+
+    state.user = result.data.user.email;
+    state.isAdmin = result.data.user.email.toLowerCase() === ADMIN_EMAIL;
+    state.viewYear = new Date().getFullYear();
+    state.viewMonth = new Date().getMonth();
+    state.selectedDate = null;
+
+    await loadRidesFromCloud();
+    await loadGlobalSettings();
+    fillCostInputs();
+    renderAll();
+    subscribeToGlobalSettings();
+    showScreen("screen-dashboard");
+    applyPendingNfcIfAny();
+  }
+
+  async function signInWithOAuth(provider) {
+    stashPendingNfcForRedirect();
+    await supabase.auth.signInWithOAuth({
+      provider: provider,
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
+  }
+
+  function logout() {
+    supabase.auth.signOut();
+    state.user = null;
+    state.isAdmin = false;
+    state.rides = {};
+    showScreen("screen-welcome");
+  }
+
+  // ---------- NFC auto-log (?ride=tam / ?ride=zpet in the URL) ----------
+  var pendingNfcAction = null;
+
+  (function captureNfcParam() {
+    var params = new URLSearchParams(window.location.search);
+    var ride = params.get("ride");
+    if (ride === "tam" || ride === "zpet") {
+      pendingNfcAction = ride;
+      try { sessionStorage.setItem("vsbtaxi_pending_nfc", ride); } catch (e) { /* ignore */ }
+      var url = new URL(window.location.href);
+      url.searchParams.delete("ride");
+      window.history.replaceState({}, "", url.toString());
+    } else {
+      try {
+        var stored = sessionStorage.getItem("vsbtaxi_pending_nfc");
+        if (stored === "tam" || stored === "zpet") pendingNfcAction = stored;
+      } catch (e) { /* ignore */ }
+    }
+  })();
+
+  function stashPendingNfcForRedirect() {
+    if (!pendingNfcAction) return;
+    try { sessionStorage.setItem("vsbtaxi_pending_nfc", pendingNfcAction); } catch (e) { /* ignore */ }
+  }
+
+  async function applyPendingNfcIfAny() {
+    if (!pendingNfcAction) return;
+    var leg = pendingNfcAction;
+    pendingNfcAction = null;
+    try { sessionStorage.removeItem("vsbtaxi_pending_nfc"); } catch (e) { /* ignore */ }
+    try {
+      await autoLogLeg(leg);
+      showNfcToast(leg);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function showNfcToast(leg) {
+    var label = leg === "tam" ? "TAM" : "ZPĚT";
+    document.getElementById("nfc-toast-text").textContent = "Jízda " + label + " byla automaticky zapsána na dnešek.";
+    var backdrop = document.getElementById("nfc-toast-backdrop");
+    backdrop.classList.add("open");
+    setTimeout(function () { backdrop.classList.remove("open"); }, 2500);
+  }
+
+  // ---------- Wire up events ----------
+  document.getElementById("btn-go-login").addEventListener("click", function () { openAuth("login"); });
+  document.getElementById("btn-go-register").addEventListener("click", function () { openAuth("register"); });
+  document.getElementById("btn-back-welcome").addEventListener("click", function () { showScreen("screen-welcome"); });
+  document.getElementById("btn-confirm-auth").addEventListener("click", confirmAuth);
+  ["email-input", "password-input"].forEach(function (id) {
+    document.getElementById(id).addEventListener("keydown", function (e) {
+      if (e.key === "Enter") confirmAuth();
+    });
+  });
+  document.getElementById("btn-logout").addEventListener("click", logout);
+  document.getElementById("btn-tam").addEventListener("click", function () { toggleLeg("tam"); });
+  document.getElementById("btn-zpet").addEventListener("click", function () { toggleLeg("zpet"); });
+  document.getElementById("btn-confirm-ride").addEventListener("click", confirmRideSave);
+  document.getElementById("btn-oauth-google").addEventListener("click", function () { signInWithOAuth("google"); });
+  document.getElementById("btn-save-settings").addEventListener("click", saveSettingsFromInputs);
+  document.getElementById("btn-pay").addEventListener("click", openPaymentQR);
+  document.getElementById("btn-close-qr").addEventListener("click", closePaymentQR);
+
+  document.getElementById("btn-prev-month").addEventListener("click", function () {
+    state.viewMonth--;
+    if (state.viewMonth < 0) { state.viewMonth = 11; state.viewYear--; }
+    renderCalendar();
+  });
+  document.getElementById("btn-next-month").addEventListener("click", function () {
+    var today = startOfToday();
+    if (state.viewYear === today.getFullYear() && state.viewMonth >= today.getMonth()) return;
+    state.viewMonth++;
+    if (state.viewMonth > 11) { state.viewMonth = 0; state.viewYear++; }
+    renderCalendar();
+  });
+
+  // ---------- Boot ----------
+  async function boot() {
+    var sessionRes = await supabase.auth.getSession();
+    var session = sessionRes.data.session;
+    if (session && session.user) {
+      state.user = session.user.email;
+      state.isAdmin = session.user.email.toLowerCase() === ADMIN_EMAIL;
+      await loadRidesFromCloud();
+      await loadGlobalSettings();
+      fillCostInputs();
+      renderAll();
+      subscribeToGlobalSettings();
+      showScreen("screen-dashboard");
+      applyPendingNfcIfAny();
+    } else {
+      showScreen("screen-welcome");
+    }
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
