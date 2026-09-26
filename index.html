@@ -822,6 +822,12 @@
         <input type="text" id="input-iban" placeholder="CZ65 0800 0000 1920 0014 5399" autocomplete="off">
       </div>
 
+      <div class="iban-field" id="qr-upload-field" style="display:none;">
+        <label>Statický QR kód z bankovní appky (nepovinné, jako záloha)</label>
+        <input type="file" id="input-qr-image" accept="image/*">
+        <div id="qr-image-preview" style="margin-top:8px;"></div>
+      </div>
+
       <button class="btn-save-settings" id="btn-save-settings" style="display:none;">Potvrdit a přepočítat všem</button>
       <p class="cost-admin-note" id="cost-admin-note" style="display:none;">Hodnoty nastavuje administrátor a platí pro všechny uživatele.</p>
 
@@ -847,6 +853,10 @@
       <h3>QR platba</h3>
       <div class="qr-amount" id="qr-amount">0 Kč</div>
       <div id="qr-canvas-holder"></div>
+      <div id="qr-manual-section" style="display:none; margin-top:18px; padding-top:16px; border-top:1px dashed rgba(33,28,51,0.2);">
+        <p style="font-size:12px; color:rgba(33,28,51,0.6); margin:0 0 10px;">Nebo naskenuj tenhle univerzální QR kód a částku zadej ručně:</p>
+        <img id="qr-manual-image" src="" alt="Statický QR kód" style="max-width:100%; border-radius:12px;">
+      </div>
       <button class="qr-close" id="btn-close-qr">Zavřít</button>
     </div>
   </div>
@@ -873,7 +883,7 @@
   var MONTH_NAMES = ["leden","únor","březen","duben","květen","červen","červenec","srpen","září","říjen","listopad","prosinec"];
   var ADMIN_EMAIL = "wolinhry@gmail.com";
 
-  var DEFAULT_SETTINGS = { fuelPrice: 35, consumption: 6.5, distanceKm: 22, bankIban: "" };
+  var DEFAULT_SETTINGS = { fuelPrice: 35, consumption: 6.5, distanceKm: 22, bankIban: "", qrImage: "" };
 
   var state = {
     user: null,
@@ -893,15 +903,21 @@
   function sameDay(a, b) { return toKey(a) === toKey(b); }
   function startOfToday() { var d = new Date(); d.setHours(0,0,0,0); return d; }
 
-  // Regular users: only today or yesterday. Admin: any day up to today (not future).
+  function maxForwardDate() {
+    var d = startOfToday();
+    d.setDate(d.getDate() + 7);
+    return d;
+  }
+
+  // Regular users: yesterday through 7 days ahead. Admin: any past day plus the same 7-day forward window.
   function isEditableDate(d) {
     var today = startOfToday();
-    if (state.isAdmin) {
-      return d.getTime() <= today.getTime();
-    }
+    var maxForward = maxForwardDate();
+    if (d.getTime() > maxForward.getTime()) return false;
+    if (state.isAdmin) return true;
     var yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
-    return d.getTime() === today.getTime() || d.getTime() === yesterday.getTime();
+    return d.getTime() >= yesterday.getTime();
   }
 
   // ---------- Supabase data access ----------
@@ -936,7 +952,8 @@
         fuelPrice: res.data.fuel_price,
         consumption: res.data.consumption,
         distanceKm: res.data.distance_km,
-        bankIban: res.data.bank_iban || ""
+        bankIban: res.data.bank_iban || "",
+        qrImage: res.data.qr_image || ""
       };
     }
   }
@@ -946,7 +963,8 @@
       fuel_price: newSettings.fuelPrice,
       consumption: newSettings.consumption,
       distance_km: newSettings.distanceKm,
-      bank_iban: newSettings.bankIban || null
+      bank_iban: newSettings.bankIban || null,
+      qr_image: newSettings.qrImage || null
     }).eq("id", 1);
     if (res.error) throw res.error;
   }
@@ -960,7 +978,8 @@
           fuelPrice: payload.new.fuel_price,
           consumption: payload.new.consumption,
           distanceKm: payload.new.distance_km,
-          bankIban: payload.new.bank_iban || ""
+          bankIban: payload.new.bank_iban || "",
+          qrImage: payload.new.qr_image || ""
         };
         fillCostInputs();
         renderCostCard();
@@ -1054,14 +1073,16 @@
     var label = state.selectedDate.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" });
     var yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
-    if (state.selectedDate > today) {
-      note.textContent = "Tenhle den ještě nenastal";
-    } else if (!editable) {
-      note.textContent = "Lze zapisovat jen za dnešek a včerejšek (" + label + " je jen k nahlédnutí)";
+    if (!editable) {
+      note.textContent = state.selectedDate > today
+        ? "Tenhle den je moc daleko dopředu (lze plánovat max. týden předem)."
+        : "Lze zapisovat jen za dnešek, včerejšek a týden dopředu (" + label + " je jen k nahlédnutí)";
     } else if (sameDay(state.selectedDate, today)) {
       note.textContent = "Vyber TAM/ZPĚT a potvrď — zaznamenává se na dnešek (" + label + ")";
     } else if (sameDay(state.selectedDate, yesterday)) {
       note.textContent = "Vyber TAM/ZPĚT a potvrď — zaznamenává se na včerejšek (" + label + ")";
+    } else if (state.selectedDate > today) {
+      note.textContent = "Plánuješ dopředu na " + label;
     } else {
       note.textContent = "Admin: opravuješ zpětně den " + label;
     }
@@ -1145,7 +1166,7 @@
       cell.setAttribute("data-zpet", entry.zpet ? "1" : "0");
       if (sameDay(d, today)) cell.classList.add("is-today");
       if (sameDay(d, state.selectedDate)) cell.classList.add("is-selected");
-      if (d > today) cell.disabled = true;
+      if (d > maxForwardDate()) cell.disabled = true;
 
       var num = document.createElement("span");
       num.className = "day-num";
@@ -1170,21 +1191,22 @@
 
     document.getElementById("cal-stat-value").textContent = totalLegs + (totalLegs === 1 ? " jízda" : (totalLegs >= 2 && totalLegs <= 4 ? " jízdy" : " jízd"));
 
-    var today2 = startOfToday();
-    document.getElementById("btn-next-month").disabled =
-      (state.viewYear > today2.getFullYear()) ||
-      (state.viewYear === today2.getFullYear() && state.viewMonth >= today2.getMonth());
+    var nextMonthStart = new Date(state.viewYear, state.viewMonth + 1, 1);
+    document.getElementById("btn-next-month").disabled = nextMonthStart > maxForwardDate();
 
     state.monthLegs = totalLegs;
     renderCostCard();
   }
 
   // ---------- Cost card ----------
+  var pendingQrImage = null;
+
   function fillCostInputs() {
     document.getElementById("input-fuel-price").value = state.settings.fuelPrice;
     document.getElementById("input-consumption").value = state.settings.consumption;
     document.getElementById("input-distance").value = state.settings.distanceKm;
     document.getElementById("input-iban").value = state.settings.bankIban || "";
+    pendingQrImage = state.settings.qrImage || null;
 
     ["input-fuel-price", "input-consumption", "input-distance", "input-iban"].forEach(function (id) {
       document.getElementById(id).disabled = !state.isAdmin;
@@ -1192,7 +1214,35 @@
     document.getElementById("btn-save-settings").style.display = state.isAdmin ? "block" : "none";
     document.getElementById("cost-admin-note").style.display = state.isAdmin ? "none" : "block";
     document.getElementById("iban-field").style.display = state.isAdmin ? "block" : "none";
+    document.getElementById("qr-upload-field").style.display = state.isAdmin ? "block" : "none";
     document.getElementById("admin-panel").style.display = state.isAdmin ? "block" : "none";
+
+    var preview = document.getElementById("qr-image-preview");
+    preview.innerHTML = pendingQrImage
+      ? "<img src=\"" + pendingQrImage + "\" alt=\"náhled\" style=\"max-width:120px;border-radius:8px;\">"
+      : "";
+  }
+
+  function resizeImageFile(file, maxDim) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = function () {
+        var img = new Image();
+        img.onerror = reject;
+        img.onload = function () {
+          var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+          var canvas = document.createElement("canvas");
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          var ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL("image/png"));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
   async function saveSettingsFromInputs() {
@@ -1207,8 +1257,9 @@
     var saveBtn = document.getElementById("btn-save-settings");
     saveBtn.disabled = true;
     try {
-      await saveGlobalSettings({ fuelPrice: fuel, consumption: cons, distanceKm: dist, bankIban: iban });
-      state.settings = { fuelPrice: fuel, consumption: cons, distanceKm: dist, bankIban: iban };
+      var newSettings = { fuelPrice: fuel, consumption: cons, distanceKm: dist, bankIban: iban, qrImage: pendingQrImage || "" };
+      await saveGlobalSettings(newSettings);
+      state.settings = newSettings;
       await renderCostCard();
     } catch (e) {
       alert("Uložení se nepovedlo: " + e.message);
@@ -1286,19 +1337,45 @@
     var amount = state.myTotal || 0;
     if (!iban || amount <= 0) return;
 
-    var vs = "" + state.viewYear + pad(state.viewMonth + 1);
-    var msg = stripDiacritics("VSB TAXI " + MONTH_NAMES[state.viewMonth] + " " + state.viewYear).slice(0, 60);
-    var spd = "SPD*1.0*ACC:" + iban + "*AM:" + amount.toFixed(2) + "*CC:CZK*MSG:" + msg + "*X-VS:" + vs;
+    var amountLabel = amount.toLocaleString("cs-CZ") + " Kč";
+    document.getElementById("qr-amount").textContent = amountLabel;
 
-    document.getElementById("qr-amount").textContent = amount.toLocaleString("cs-CZ") + " Kč";
+    // Manual/static fallback — shown regardless of whether the automatic generator works.
+    var manualSection = document.getElementById("qr-manual-section");
+    if (state.settings.qrImage) {
+      document.getElementById("qr-manual-image").src = state.settings.qrImage;
+      manualSection.style.display = "block";
+    } else {
+      manualSection.style.display = "none";
+    }
+
+    // Open the modal FIRST — so it's always visible even if QR generation below throws.
+    document.getElementById("qr-modal-backdrop").classList.add("open");
+
     var holder = document.getElementById("qr-canvas-holder");
     holder.innerHTML = "";
-    var canvas = document.createElement("canvas");
-    holder.appendChild(canvas);
-    QRCode.toCanvas(canvas, spd, { width: 220, margin: 1 }, function (err) {
-      if (err) holder.textContent = "QR kód se nepodařilo vygenerovat.";
-    });
-    document.getElementById("qr-modal-backdrop").classList.add("open");
+
+    if (typeof QRCode === "undefined") {
+      holder.textContent = "Knihovna pro generování QR kódu se nenačetla — zkus prosím ruční variantu níže.";
+      return;
+    }
+
+    try {
+      var vs = "" + state.viewYear + pad(state.viewMonth + 1);
+      var msg = stripDiacritics("VSB TAXI " + MONTH_NAMES[state.viewMonth] + " " + state.viewYear).slice(0, 60);
+      var spd = "SPD*1.0*ACC:" + iban + "*AM:" + amount.toFixed(2) + "*CC:CZK*MSG:" + msg + "*X-VS:" + vs;
+      var canvas = document.createElement("canvas");
+      holder.appendChild(canvas);
+      QRCode.toCanvas(canvas, spd, { width: 220, margin: 1 }, function (err) {
+        if (err) {
+          console.error(err);
+          holder.textContent = "QR kód se nepodařilo vygenerovat — zkus prosím ruční variantu níže.";
+        }
+      });
+    } catch (e) {
+      console.error(e);
+      holder.textContent = "QR kód se nepodařilo vygenerovat — zkus prosím ruční variantu níže.";
+    }
   }
 
   function closePaymentQR() {
@@ -1447,6 +1524,17 @@
   document.getElementById("btn-save-settings").addEventListener("click", saveSettingsFromInputs);
   document.getElementById("btn-pay").addEventListener("click", openPaymentQR);
   document.getElementById("btn-close-qr").addEventListener("click", closePaymentQR);
+  document.getElementById("input-qr-image").addEventListener("change", async function (e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      pendingQrImage = await resizeImageFile(file, 500);
+      var preview = document.getElementById("qr-image-preview");
+      preview.innerHTML = "<img src=\"" + pendingQrImage + "\" alt=\"náhled\" style=\"max-width:120px;border-radius:8px;\">";
+    } catch (err) {
+      alert("Obrázek se nepodařilo načíst.");
+    }
+  });
 
   document.getElementById("btn-prev-month").addEventListener("click", function () {
     state.viewMonth--;
@@ -1454,8 +1542,8 @@
     renderCalendar();
   });
   document.getElementById("btn-next-month").addEventListener("click", function () {
-    var today = startOfToday();
-    if (state.viewYear === today.getFullYear() && state.viewMonth >= today.getMonth()) return;
+    var nextMonthStart = new Date(state.viewYear, state.viewMonth + 1, 1);
+    if (nextMonthStart > maxForwardDate()) return;
     state.viewMonth++;
     if (state.viewMonth > 11) { state.viewMonth = 0; state.viewYear++; }
     renderCalendar();
