@@ -705,9 +705,34 @@
   .admin-user-row {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     font-size: 13px;
-    padding: 6px 0;
+    padding: 8px 0;
     border-bottom: 1px solid rgba(33,28,51,0.06);
+    cursor: pointer;
+  }
+  .admin-user-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .admin-user-name span.email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .admin-user-arrow { font-size: 10px; opacity: 0.5; transition: transform 0.15s; flex-shrink: 0; }
+  .admin-user-arrow.open { transform: rotate(90deg); }
+  .admin-user-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .admin-paid-label {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 10.5px; color: rgba(33,28,51,0.6);
+  }
+  .admin-paid-checkbox { width: 16px; height: 16px; cursor: pointer; accent-color: var(--teal-dark); }
+  .admin-user-detail {
+    display: none;
+    padding: 4px 0 10px 18px;
+    font-size: 12px;
+    color: rgba(33,28,51,0.7);
+  }
+  .admin-user-detail.open { display: block; }
+  .admin-user-detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    border-bottom: 1px dotted rgba(33,28,51,0.08);
   }
 
   .admin-grand-total {
@@ -1306,18 +1331,15 @@
     var listEl = document.getElementById("admin-user-list");
     listEl.innerHTML = "";
 
-    var usersRes = await supabase.rpc("admin_user_totals", { p_start: range.start, p_end: range.end });
+    var monthKey = state.viewYear + "-" + pad(state.viewMonth + 1);
+    var usersRes = await supabase.rpc("admin_user_summary", { p_start: range.start, p_end: range.end, p_month_key: monthKey });
     if (usersRes.error) {
       listEl.innerHTML = "<div class=\"admin-user-row\" style=\"color:#c15a4a;\">Chyba: " + usersRes.error.message + "</div>";
     } else if (!usersRes.data || usersRes.data.length === 0) {
       listEl.innerHTML = "<div class=\"admin-user-row\">Zatím žádné jízdy k rozúčtování.</div>";
     } else {
       usersRes.data.forEach(function (row) {
-        var rowEl = document.createElement("div");
-        rowEl.className = "admin-user-row";
-        var amount = Math.round(row.total_cost || 0).toLocaleString("cs-CZ") + " Kč";
-        rowEl.innerHTML = "<span>" + row.user_email + "</span><span>" + amount + "</span>";
-        listEl.appendChild(rowEl);
+        renderAdminUserRow(row, listEl, range, monthKey);
       });
     }
 
@@ -1325,6 +1347,97 @@
     document.getElementById("admin-grand-total-value").textContent = totalRes.error
       ? "chyba"
       : Math.round(totalRes.data || 0).toLocaleString("cs-CZ") + " Kč";
+  }
+
+  function renderAdminUserRow(row, listEl, range, monthKey) {
+    var wrapper = document.createElement("div");
+
+    var header = document.createElement("div");
+    header.className = "admin-user-row";
+
+    var nameSpan = document.createElement("span");
+    nameSpan.className = "admin-user-name";
+    var arrowEl = document.createElement("span");
+    arrowEl.className = "admin-user-arrow";
+    arrowEl.textContent = "▶";
+    var emailEl = document.createElement("span");
+    emailEl.className = "email";
+    emailEl.textContent = row.user_email;
+    nameSpan.appendChild(arrowEl);
+    nameSpan.appendChild(emailEl);
+
+    var rightSpan = document.createElement("span");
+    rightSpan.className = "admin-user-right";
+    var amountEl = document.createElement("span");
+    amountEl.textContent = Math.round(row.total_cost || 0).toLocaleString("cs-CZ") + " Kč";
+
+    var paidLabel = document.createElement("label");
+    paidLabel.className = "admin-paid-label";
+    var checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "admin-paid-checkbox";
+    checkbox.checked = !!row.paid;
+    paidLabel.appendChild(checkbox);
+    paidLabel.appendChild(document.createTextNode("zaplaceno"));
+    paidLabel.addEventListener("click", function (e) { e.stopPropagation(); });
+    checkbox.addEventListener("change", async function () {
+      var checked = checkbox.checked;
+      checkbox.disabled = true;
+      try {
+        var res = await supabase.from("payments").upsert({
+          user_id: row.user_id,
+          month_key: monthKey,
+          paid: checked
+        }, { onConflict: "user_id,month_key" });
+        if (res.error) throw res.error;
+      } catch (err) {
+        alert("Uložení se nepovedlo: " + err.message);
+        checkbox.checked = !checked;
+      }
+      checkbox.disabled = false;
+    });
+
+    rightSpan.appendChild(amountEl);
+    rightSpan.appendChild(paidLabel);
+    header.appendChild(nameSpan);
+    header.appendChild(rightSpan);
+
+    var detail = document.createElement("div");
+    detail.className = "admin-user-detail";
+    detail.textContent = "Načítám…";
+
+    var loaded = false;
+    header.addEventListener("click", async function () {
+      var isOpen = !detail.classList.contains("open");
+      detail.classList.toggle("open", isOpen);
+      arrowEl.classList.toggle("open", isOpen);
+      if (isOpen && !loaded) {
+        loaded = true;
+        var res = await supabase.rpc("admin_user_ride_detail", { p_user_id: row.user_id, p_start: range.start, p_end: range.end });
+        if (res.error) {
+          detail.textContent = "Chyba: " + res.error.message;
+          return;
+        }
+        if (!res.data || res.data.length === 0) {
+          detail.textContent = "Žádné jízdy v tomto měsíci.";
+          return;
+        }
+        detail.innerHTML = "";
+        res.data.forEach(function (r) {
+          var d = new Date(r.ride_date + "T00:00:00");
+          var label = d.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" });
+          var what = r.tam && r.zpet ? "tam i zpět" : (r.tam ? "jen tam" : (r.zpet ? "jen zpět" : "—"));
+          var line = document.createElement("div");
+          line.className = "admin-user-detail-row";
+          line.innerHTML = "<span>" + label + "</span><span>" + what + "</span>";
+          detail.appendChild(line);
+        });
+      }
+    });
+
+    wrapper.appendChild(header);
+    wrapper.appendChild(detail);
+    listEl.appendChild(wrapper);
   }
 
   // ---------- QR payment ----------
