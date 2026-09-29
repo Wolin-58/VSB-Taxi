@@ -1054,7 +1054,7 @@
     var week = currentWeekDates();
     var today = startOfToday();
 
-    if (!state.selectedDate || state.selectedDate > today) {
+    if (!state.selectedDate) {
       var pick = today;
       var isWeekday = today.getDay() >= 1 && today.getDay() <= 5;
       if (!isWeekday) { pick = week[4]; }
