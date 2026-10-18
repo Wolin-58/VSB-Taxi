@@ -700,7 +700,58 @@
     font-weight: 700;
     font-size: 14px;
     margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
+
+  .btn-add-ride {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: none;
+    background: var(--purple);
+    color: var(--white);
+    font-size: 16px;
+    line-height: 1;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .btn-add-ride:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: 2px; }
+
+  .admin-add-label {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: rgba(33,28,51,0.6);
+    margin: 0 0 6px;
+  }
+  .admin-add-input {
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 10px;
+    border: 1.5px solid rgba(33,28,51,0.15);
+    background: var(--white);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+  .admin-add-legs { display: flex; gap: 10px; margin-bottom: 8px; }
+  .admin-add-leg-btn {
+    flex: 1;
+    padding: 11px 0;
+    border-radius: 10px;
+    border: 1.5px solid rgba(33,28,51,0.2);
+    background: var(--white);
+    color: var(--ink);
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 1px;
+    cursor: pointer;
+  }
+  .admin-add-leg-btn.on { background: var(--teal); border-color: var(--teal); color: var(--white); }
 
   .admin-user-row {
     display: flex;
@@ -715,12 +766,24 @@
   .admin-user-name span.email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .admin-user-arrow { font-size: 10px; opacity: 0.5; transition: transform 0.15s; flex-shrink: 0; }
   .admin-user-arrow.open { transform: rotate(90deg); }
-  .admin-user-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .admin-user-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .admin-paid-label {
     display: flex; align-items: center; gap: 4px;
     font-size: 10.5px; color: rgba(33,28,51,0.6);
   }
   .admin-paid-checkbox { width: 16px; height: 16px; cursor: pointer; accent-color: var(--teal-dark); }
+  .admin-penalty-label {
+    display: flex; align-items: center; gap: 3px;
+    font-size: 10.5px; color: rgba(33,28,51,0.5);
+  }
+  .admin-penalty-input {
+    width: 40px;
+    padding: 3px 4px;
+    border-radius: 6px;
+    border: 1px solid rgba(33,28,51,0.2);
+    font-size: 11px;
+    text-align: right;
+  }
   .admin-user-detail {
     display: none;
     padding: 4px 0 10px 18px;
@@ -863,7 +926,10 @@
       <button class="btn-pay" id="btn-pay" style="display:none;">Zaplatit QR kódem</button>
 
       <div class="admin-panel" id="admin-panel" style="display:none;">
-        <div class="admin-panel-title">Podíl jednotlivých uživatelů</div>
+        <div class="admin-panel-title">
+          <span>Podíl jednotlivých uživatelů</span>
+          <button type="button" id="btn-admin-add-ride" class="btn-add-ride">+</button>
+        </div>
         <div id="admin-user-list"></div>
         <div class="admin-grand-total">
           <span>Celkem (bez dělení)</span>
@@ -883,6 +949,27 @@
         <img id="qr-manual-image" src="" alt="Statický QR kód" style="max-width:100%; border-radius:12px;">
       </div>
       <button class="qr-close" id="btn-close-qr">Zavřít</button>
+    </div>
+  </div>
+
+  <div class="qr-modal-backdrop" id="admin-add-modal-backdrop">
+    <div class="qr-modal">
+      <h3>Zapsat jízdu za uživatele</h3>
+      <div style="text-align:left; margin-top:12px;">
+        <label class="admin-add-label">Uživatel</label>
+        <select id="admin-add-user" class="admin-add-input"></select>
+
+        <label class="admin-add-label">Datum</label>
+        <input type="date" id="admin-add-date" class="admin-add-input">
+
+        <div class="admin-add-legs">
+          <button type="button" class="admin-add-leg-btn" id="admin-add-tam">TAM</button>
+          <button type="button" class="admin-add-leg-btn" id="admin-add-zpet">ZPĚT</button>
+        </div>
+        <p id="admin-add-error" style="color:#c15a4a; font-size:12px; min-height:16px;"></p>
+      </div>
+      <button class="btn-save-settings" id="admin-add-save">Uložit</button>
+      <button class="qr-close" id="admin-add-close">Zavřít</button>
     </div>
   </div>
 
@@ -968,6 +1055,23 @@
       zpet: entry.zpet
     }, { onConflict: "user_id,ride_date" });
     if (res.error) throw res.error;
+  }
+
+  // Admin-only: write a ride for an arbitrary user/date (RLS allows this for the admin email).
+  async function adminSaveRideForUser(userId, dateKey, entry) {
+    var res = await supabase.from("rides").upsert({
+      user_id: userId,
+      ride_date: dateKey,
+      tam: entry.tam,
+      zpet: entry.zpet
+    }, { onConflict: "user_id,ride_date" });
+    if (res.error) throw res.error;
+  }
+
+  async function adminFetchRideEntry(userId, dateKey) {
+    var res = await supabase.from("rides").select("tam,zpet").eq("user_id", userId).eq("ride_date", dateKey).maybeSingle();
+    if (res.error) throw res.error;
+    return res.data || { tam: false, zpet: false };
   }
 
   async function loadGlobalSettings() {
@@ -1299,28 +1403,10 @@
   }
 
   async function renderCostCard() {
-    var fuel = state.settings.fuelPrice;
-    var cons = state.settings.consumption;
-    var dist = state.settings.distanceKm;
-    var legCost = dist * (cons / 100) * fuel;
     var range = monthRange();
 
-    var countsRes = await supabase.rpc("ride_counts_for_range", { p_start: range.start, p_end: range.end });
-    var countsByDate = {};
-    (countsRes.data || []).forEach(function (row) {
-      countsByDate[row.ride_date] = { tam: row.tam_count, zpet: row.zpet_count };
-    });
-
-    var myTotal = 0;
-    Object.keys(state.rides).forEach(function (dateKey) {
-      if (dateKey < range.start || dateKey > range.end) return;
-      var entry = state.rides[dateKey];
-      var counts = countsByDate[dateKey] || { tam: 1, zpet: 1 };
-      if (entry.tam) myTotal += legCost / Math.max(counts.tam, 1);
-      if (entry.zpet) myTotal += legCost / Math.max(counts.zpet, 1);
-    });
-
-    state.myTotal = Math.round(myTotal);
+    var myTotalRes = await supabase.rpc("my_month_total", { p_start: range.start, p_end: range.end });
+    state.myTotal = myTotalRes.error ? 0 : Math.round(myTotalRes.data || 0);
     document.getElementById("cost-total-value").textContent = state.myTotal.toLocaleString("cs-CZ") + " Kč";
 
     var payBtn = document.getElementById("btn-pay");
@@ -1397,7 +1483,37 @@
       checkbox.disabled = false;
     });
 
+    var penaltyLabel = document.createElement("label");
+    penaltyLabel.className = "admin-penalty-label";
+    penaltyLabel.title = "Vidíš jen ty — uživatel to uvidí jako běžnou cenu";
+    var penaltyInput = document.createElement("input");
+    penaltyInput.type = "number";
+    penaltyInput.step = "0.1";
+    penaltyInput.className = "admin-penalty-input";
+    penaltyInput.value = row.penalty_percent || 0;
+    penaltyLabel.appendChild(penaltyInput);
+    penaltyLabel.appendChild(document.createTextNode("%"));
+    penaltyLabel.addEventListener("click", function (e) { e.stopPropagation(); });
+    penaltyInput.addEventListener("change", async function () {
+      var pct = parseFloat(penaltyInput.value);
+      if (isNaN(pct)) pct = 0;
+      penaltyInput.disabled = true;
+      try {
+        var res = await supabase.from("user_penalties").upsert({
+          user_id: row.user_id,
+          penalty_percent: pct
+        }, { onConflict: "user_id" });
+        if (res.error) throw res.error;
+        await renderCostCard();
+        return;
+      } catch (err) {
+        alert("Uložení se nepovedlo: " + err.message);
+      }
+      penaltyInput.disabled = false;
+    });
+
     rightSpan.appendChild(amountEl);
+    rightSpan.appendChild(penaltyLabel);
     rightSpan.appendChild(paidLabel);
     header.appendChild(nameSpan);
     header.appendChild(rightSpan);
@@ -1647,6 +1763,95 @@
     } catch (err) {
       alert("Obrázek se nepodařilo načíst.");
     }
+  });
+
+  // ---------- Admin: log a ride on behalf of another user ----------
+  var adminAddUsersLoaded = false;
+  var adminAddTam = false;
+  var adminAddZpet = false;
+
+  async function openAdminAddModal() {
+    document.getElementById("admin-add-error").textContent = "";
+    var dateInput = document.getElementById("admin-add-date");
+    if (!dateInput.value) dateInput.value = toKey(startOfToday());
+
+    if (!adminAddUsersLoaded) {
+      var select = document.getElementById("admin-add-user");
+      select.innerHTML = "<option>Načítám…</option>";
+      var res = await supabase.rpc("admin_list_users");
+      select.innerHTML = "";
+      if (res.error) {
+        document.getElementById("admin-add-error").textContent = "Chyba: " + res.error.message;
+      } else {
+        (res.data || []).forEach(function (u) {
+          var opt = document.createElement("option");
+          opt.value = u.user_id;
+          opt.textContent = u.user_email;
+          select.appendChild(opt);
+        });
+        adminAddUsersLoaded = true;
+      }
+    }
+
+    document.getElementById("admin-add-modal-backdrop").classList.add("open");
+    await refreshAdminAddLegButtons();
+  }
+
+  function closeAdminAddModal() {
+    document.getElementById("admin-add-modal-backdrop").classList.remove("open");
+  }
+
+  async function refreshAdminAddLegButtons() {
+    var userId = document.getElementById("admin-add-user").value;
+    var dateKey = document.getElementById("admin-add-date").value;
+    adminAddTam = false;
+    adminAddZpet = false;
+    if (userId && dateKey) {
+      try {
+        var entry = await adminFetchRideEntry(userId, dateKey);
+        adminAddTam = !!entry.tam;
+        adminAddZpet = !!entry.zpet;
+      } catch (e) {
+        document.getElementById("admin-add-error").textContent = "Chyba: " + e.message;
+      }
+    }
+    document.getElementById("admin-add-tam").classList.toggle("on", adminAddTam);
+    document.getElementById("admin-add-zpet").classList.toggle("on", adminAddZpet);
+  }
+
+  async function saveAdminAddRide() {
+    var userId = document.getElementById("admin-add-user").value;
+    var dateKey = document.getElementById("admin-add-date").value;
+    var errorEl = document.getElementById("admin-add-error");
+    errorEl.textContent = "";
+    if (!userId || !dateKey) {
+      errorEl.textContent = "Vyber uživatele i datum.";
+      return;
+    }
+    var saveBtn = document.getElementById("admin-add-save");
+    saveBtn.disabled = true;
+    try {
+      await adminSaveRideForUser(userId, dateKey, { tam: adminAddTam, zpet: adminAddZpet });
+      closeAdminAddModal();
+      await renderCostCard();
+    } catch (e) {
+      errorEl.textContent = "Chyba: " + e.message;
+    }
+    saveBtn.disabled = false;
+  }
+
+  document.getElementById("btn-admin-add-ride").addEventListener("click", openAdminAddModal);
+  document.getElementById("admin-add-close").addEventListener("click", closeAdminAddModal);
+  document.getElementById("admin-add-save").addEventListener("click", saveAdminAddRide);
+  document.getElementById("admin-add-user").addEventListener("change", refreshAdminAddLegButtons);
+  document.getElementById("admin-add-date").addEventListener("change", refreshAdminAddLegButtons);
+  document.getElementById("admin-add-tam").addEventListener("click", function () {
+    adminAddTam = !adminAddTam;
+    document.getElementById("admin-add-tam").classList.toggle("on", adminAddTam);
+  });
+  document.getElementById("admin-add-zpet").addEventListener("click", function () {
+    adminAddZpet = !adminAddZpet;
+    document.getElementById("admin-add-zpet").classList.toggle("on", adminAddZpet);
   });
 
   document.getElementById("btn-prev-month").addEventListener("click", function () {
